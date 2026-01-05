@@ -262,6 +262,7 @@
 
     const canvas = document.getElementById("bg");
     const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0b1020, 0.0028);
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
     camera.position.z = 180;
 
@@ -481,6 +482,41 @@
     const points = new THREE.Points(geometry, material);
     scene.add(points);
 
+    // Far layer for extra depth
+    const farCount = 360;
+    const farSpread = 520;
+    const farZMin = -farSpread * 2 - 200;
+    const farZMax = -farSpread * 0.6;
+    const farPositions = new Float32Array(farCount * 3);
+    const farVelocities = new Float32Array(farCount * 3);
+    for (let i = 0; i < farCount; i++) {
+      const i3 = i * 3;
+      farPositions[i3] = (Math.random() - 0.5) * farSpread * 2;
+      farPositions[i3 + 1] = (Math.random() - 0.5) * farSpread * 2;
+      farPositions[i3 + 2] = farZMin + Math.random() * (farZMax - farZMin);
+      farVelocities[i3] = (Math.random() - 0.5) * 0.05;
+      farVelocities[i3 + 1] = (Math.random() - 0.5) * 0.05;
+      farVelocities[i3 + 2] = (Math.random() - 0.5) * 0.05;
+    }
+
+    const farGeometry = new THREE.BufferGeometry();
+    farGeometry.setAttribute("position", new THREE.BufferAttribute(farPositions, 3));
+    const farMaterial = new THREE.PointsMaterial({
+      color: "#7aa2ff",
+      size: 1.4,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.7
+    });
+    const farPoints = new THREE.Points(farGeometry, farMaterial);
+    scene.add(farPoints);
+
+    const pointerTarget = { x: 0, y: 0 };
+    window.addEventListener("pointermove", (event) => {
+      pointerTarget.x = (event.clientX / window.innerWidth - 0.5) * 2;
+      pointerTarget.y = -(event.clientY / window.innerHeight - 0.5) * 2;
+    });
+
     const resize = () => {
       const { innerWidth: w, innerHeight: h } = window;
       renderer.setSize(w, h, false);
@@ -489,6 +525,7 @@
     };
 
     const animate = () => {
+      const t = performance.now() * 0.001;
       const pos = geometry.getAttribute("position");
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
@@ -505,8 +542,33 @@
       }
       pos.needsUpdate = true;
 
+      const farPos = farGeometry.getAttribute("position");
+      for (let i = 0; i < farCount; i++) {
+        const i3 = i * 3;
+        farPositions[i3] += farVelocities[i3];
+        farPositions[i3 + 1] += farVelocities[i3 + 1];
+        farPositions[i3 + 2] += farVelocities[i3 + 2];
+        for (let axis = 0; axis < 3; axis++) {
+          const idx = i3 + axis;
+          if (farPositions[idx] > farSpread) farPositions[idx] = -farSpread;
+          if (farPositions[idx] < -farSpread) farPositions[idx] = farSpread;
+        }
+        if (farPositions[i3 + 2] > farZMax) farPositions[i3 + 2] = farZMin;
+        if (farPositions[i3 + 2] < farZMin) farPositions[i3 + 2] = farZMax;
+      }
+      farPos.needsUpdate = true;
+
       scene.rotation.y += 0.0008;
       scene.rotation.x += 0.0004;
+      scene.rotation.y += pointerTarget.x * 0.0015;
+      scene.rotation.x += pointerTarget.y * 0.0008;
+      const targetX = pointerTarget.x * 14;
+      const targetY = pointerTarget.y * 10;
+      const targetZ = 180 + Math.sin(t * 0.3) * 6 + pointerTarget.y * 8;
+      camera.position.x += (targetX - camera.position.x) * 0.05;
+      camera.position.y += (targetY - camera.position.y) * 0.05;
+      camera.position.z += (targetZ - camera.position.z) * 0.03;
+      camera.lookAt(scene.position);
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
