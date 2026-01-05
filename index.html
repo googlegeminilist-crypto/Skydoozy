@@ -94,6 +94,94 @@
       color: rgba(255, 80, 80, 0.7);
     }
 
+    .score-banner {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(9, 16, 28, 0.7);
+      border: 1px solid rgba(77, 166, 255, 0.6);
+      color: #b6d8ff;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 12px rgba(77, 166, 255, 0.9), 0 0 22px rgba(77, 166, 255, 0.6);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(77, 166, 255, 0.35);
+      z-index: 6;
+      backdrop-filter: blur(8px);
+    }
+
+    .challenge {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      background: rgba(8, 14, 24, 0.85);
+      border: 1px solid rgba(109, 255, 172, 0.4);
+      border-radius: 12px;
+      padding: 12px 14px;
+      width: min(380px, 90vw);
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4), 0 0 14px rgba(109, 255, 172, 0.3);
+      backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+
+    .challenge__title {
+      margin: 0 0 6px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+    }
+
+    .challenge__meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: #9bd5ff;
+      margin-bottom: 6px;
+    }
+
+    .challenge form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .challenge input {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(109, 255, 172, 0.4);
+      background: rgba(255, 255, 255, 0.03);
+      color: #e9f4ff;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .challenge input:focus {
+      border-color: rgba(77, 166, 255, 0.7);
+      box-shadow: 0 0 10px rgba(77, 166, 255, 0.35);
+    }
+
+    .challenge button {
+      padding: 10px 12px;
+      background: linear-gradient(135deg, #4da6ff, #6cf79d);
+      color: #0b0f1a;
+      font-weight: 800;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(77, 166, 255, 0.35);
+    }
+
+    .challenge__status {
+      margin: 8px 0 0;
+      font-size: 0.9rem;
+      min-height: 1.1rem;
+    }
+
     .word-cloud {
       list-style: none;
       padding: 0;
@@ -142,6 +230,7 @@
   </style>
 </head>
 <body>
+  <div class="score-banner">Score: <span id="scoreValue">100</span></div>
   <canvas id="bg"></canvas>
   <div class="title-stack">
     <div class="matrix-window">
@@ -159,6 +248,18 @@
       <li style="--x: 0; --y: 230; --dx: 8; --dy: -10; --d: 13;">badmiton</li>
     </ul>
   </div>
+  <div class="challenge" id="challenge" hidden>
+    <p class="challenge__title">Spell the missing word</p>
+    <div class="challenge__meta">
+      <span id="challengeStatus"></span>
+      <span>Time: <strong id="challengeTimer">--</strong></span>
+    </div>
+    <form id="challengeForm">
+      <input id="challengeInput" autocomplete="off" placeholder="Enter word" />
+      <button type="submit">Submit</button>
+    </form>
+    <p class="challenge__status" id="challengeMessage"></p>
+  </div>
   <script type="module">
     import * as THREE from "https://unpkg.com/three@0.161.0/build/three.module.js";
 
@@ -170,6 +271,14 @@
       "#c084ff", // violet
       "#6cf79d"  // mint (reserved for challenge flash)
     ];
+
+    const scoreValue = document.getElementById("scoreValue");
+    let score = 100;
+    const setScore = (val) => {
+      score = val;
+      scoreValue.textContent = score;
+    };
+    setScore(score);
 
     const nonGreenColor = () => {
       const choices = palette.filter((c) => c !== "#6cf79d");
@@ -241,6 +350,83 @@
 
     // Matrix typing overlay in blood-red style
     const matrixInput = document.getElementById("matrixInput");
+
+    // Disappearing-word spelling challenge
+    const challengeBox = document.getElementById("challenge");
+    const challengeForm = document.getElementById("challengeForm");
+    const challengeInput = document.getElementById("challengeInput");
+    const challengeTimer = document.getElementById("challengeTimer");
+    const challengeStatus = document.getElementById("challengeStatus");
+    const challengeMessage = document.getElementById("challengeMessage");
+
+    let challengeActive = false;
+    let activeWord = null;
+    let countdownInterval = null;
+    let scheduleTimeout = null;
+    let timeLeft = 0;
+
+    const updateTimer = () => {
+      challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
+    };
+
+    const endChallenge = (message) => {
+      challengeActive = false;
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      clearTimeout(scheduleTimeout);
+      if (activeWord) {
+        activeWord.style.visibility = "visible";
+        activeWord = null;
+      }
+      challengeBox.hidden = true;
+      if (message) {
+        challengeMessage.textContent = message;
+      }
+      timeLeft = 0;
+      updateTimer();
+      scheduleTimeout = setTimeout(startChallenge, 9000 + Math.random() * 4000);
+    };
+
+    const tick = () => {
+      timeLeft -= 1;
+      updateTimer();
+      if (timeLeft <= 0) {
+        challengeStatus.textContent = "Time's up. The word reappears.";
+        endChallenge("");
+      }
+    };
+
+    const startChallenge = () => {
+      if (challengeActive || words.length === 0) return;
+      clearTimeout(scheduleTimeout);
+      challengeActive = true;
+      challengeMessage.textContent = "";
+      challengeStatus.textContent = "A word vanished!";
+      activeWord = words[Math.floor(Math.random() * words.length)];
+      activeWord.style.visibility = "hidden";
+      timeLeft = 20;
+      updateTimer();
+      challengeInput.value = "";
+      challengeBox.hidden = false;
+      challengeInput.focus();
+      countdownInterval = setInterval(tick, 1000);
+    };
+
+    challengeForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!challengeActive || !activeWord) return;
+      const guess = challengeInput.value.trim().toLowerCase();
+      const target = activeWord.textContent.trim().toLowerCase();
+      if (guess === target) {
+        challengeStatus.textContent = "Correct!";
+        setScore(score + 10);
+        endChallenge("You got it right.");
+      } else {
+        challengeStatus.textContent = "Try again.";
+      }
+    });
+
+    scheduleTimeout = setTimeout(startChallenge, 9000);
 
     const particleCount = 450;
     const spread = 260;
