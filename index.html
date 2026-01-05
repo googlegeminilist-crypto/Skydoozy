@@ -488,8 +488,8 @@
     // Far layer for extra depth
     const farCount = 360;
     const farSpread = 520;
-    const farZMin = -farSpread * 2 - 200;
-    const farZMax = -farSpread * 0.6;
+    const farZMin = -farSpread * 2 - 400;
+    const farZMax = -farSpread * 0.8;
     const farPositions = new Float32Array(farCount * 3);
     const farVelocities = new Float32Array(farCount * 3);
     for (let i = 0; i < farCount; i++) {
@@ -513,6 +513,33 @@
     });
     const farPoints = new THREE.Points(farGeometry, farMaterial);
     scene.add(farPoints);
+
+    // Near "pop-out" layer for stronger emergence toward the viewer
+    const nearCount = 120;
+    const nearSpread = 180;
+    const nearZStart = -800;
+    const nearPositions = new Float32Array(nearCount * 3);
+    const nearVelocities = new Float32Array(nearCount * 3);
+    for (let i = 0; i < nearCount; i++) {
+      const i3 = i * 3;
+      nearPositions[i3] = (Math.random() - 0.5) * nearSpread * 1.6;
+      nearPositions[i3 + 1] = (Math.random() - 0.5) * nearSpread * 1.4;
+      nearPositions[i3 + 2] = nearZStart + Math.random() * 600; // starts deep
+      nearVelocities[i3] = (Math.random() - 0.5) * 0.18;
+      nearVelocities[i3 + 1] = (Math.random() - 0.5) * 0.18;
+      nearVelocities[i3 + 2] = 0.55 + Math.random() * 0.25; // moves toward camera quickly
+    }
+    const nearGeometry = new THREE.BufferGeometry();
+    nearGeometry.setAttribute("position", new THREE.BufferAttribute(nearPositions, 3));
+    const nearMaterial = new THREE.PointsMaterial({
+      color: "#c6f7ff",
+      size: 3.4,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.9
+    });
+    const nearPoints = new THREE.Points(nearGeometry, nearMaterial);
+    scene.add(nearPoints);
 
     const pointerTarget = { x: 0, y: 0 };
     window.addEventListener("pointermove", (event) => {
@@ -550,27 +577,41 @@
         const i3 = i * 3;
         farPositions[i3] += farVelocities[i3];
         farPositions[i3 + 1] += farVelocities[i3 + 1];
-        farPositions[i3 + 2] += farVelocities[i3 + 2];
-        for (let axis = 0; axis < 3; axis++) {
-          const idx = i3 + axis;
-          if (farPositions[idx] > farSpread) farPositions[idx] = -farSpread;
-          if (farPositions[idx] < -farSpread) farPositions[idx] = farSpread;
-        }
-        if (farPositions[i3 + 2] > farZMax) farPositions[i3 + 2] = farZMin;
-        if (farPositions[i3 + 2] < farZMin) farPositions[i3 + 2] = farZMax;
+      farPositions[i3 + 2] += farVelocities[i3 + 2];
+      for (let axis = 0; axis < 3; axis++) {
+        const idx = i3 + axis;
+        if (farPositions[idx] > farSpread) farPositions[idx] = -farSpread;
+        if (farPositions[idx] < -farSpread) farPositions[idx] = farSpread;
       }
-      farPos.needsUpdate = true;
+      if (farPositions[i3 + 2] > farZMax) farPositions[i3 + 2] = farZMin;
+      if (farPositions[i3 + 2] < farZMin) farPositions[i3 + 2] = farZMax;
+    }
+    farPos.needsUpdate = true;
+
+    const nearPos = nearGeometry.getAttribute("position");
+    for (let i = 0; i < nearCount; i++) {
+      const i3 = i * 3;
+      nearPositions[i3] += nearVelocities[i3];
+      nearPositions[i3 + 1] += nearVelocities[i3 + 1];
+      nearPositions[i3 + 2] += nearVelocities[i3 + 2];
+      if (nearPositions[i3 + 2] > camera.position.z + 60) {
+        nearPositions[i3] = (Math.random() - 0.5) * nearSpread * 1.6;
+        nearPositions[i3 + 1] = (Math.random() - 0.5) * nearSpread * 1.4;
+        nearPositions[i3 + 2] = nearZStart;
+      }
+    }
+    nearPos.needsUpdate = true;
 
       scene.rotation.y += 0.0008;
       scene.rotation.x += 0.0004;
       scene.rotation.y += pointerTarget.x * 0.0015;
       scene.rotation.x += pointerTarget.y * 0.0008;
-      const targetX = pointerTarget.x * 18;
-      const targetY = pointerTarget.y * 12;
-      const targetZ = 220 + Math.sin(t * 0.35) * 10 + pointerTarget.y * 12;
-      camera.position.x += (targetX - camera.position.x) * 0.06;
-      camera.position.y += (targetY - camera.position.y) * 0.06;
-      camera.position.z += (targetZ - camera.position.z) * 0.035;
+      const targetX = pointerTarget.x * 22;
+      const targetY = pointerTarget.y * 14;
+      const targetZ = 360 + Math.sin(t * 0.35) * 14 + pointerTarget.y * 14;
+      camera.position.x += (targetX - camera.position.x) * 0.065;
+      camera.position.y += (targetY - camera.position.y) * 0.065;
+      camera.position.z += (targetZ - camera.position.z) * 0.04;
       camera.lookAt(0, 0, 0);
 
       renderer.render(scene, camera);
