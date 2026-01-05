@@ -76,14 +76,6 @@
       pointer-events: none;
     }
 
-    .matrix-typed {
-      color: #ff3b3b;
-      font-family: "Courier New", monospace;
-      font-weight: 700;
-      text-shadow: 0 0 6px rgba(255, 45, 45, 0.8), 0 0 10px rgba(255, 15, 15, 0.7);
-      min-height: 1.2em;
-    }
-
     .matrix-input {
       pointer-events: auto;
       background: rgba(0, 0, 0, 0.6);
@@ -107,19 +99,21 @@
       padding: 0;
       margin: 0;
       position: absolute;
-      inset: -140px -160px;
+      inset: 0;
       pointer-events: none;
-      z-index: 2;
+      z-index: 3;
     }
 
     .word-cloud li {
       position: absolute;
+      left: 50%;
+      top: 50%;
       font-size: 1.1rem;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--c, #6cf79d);
-      text-shadow: 0 0 8px var(--c, #6cf79d), 0 0 16px var(--c, #6cf79d);
-      opacity: 0.9;
-      transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
+      text-shadow: 0 0 10px var(--c, #6cf79d), 0 0 24px var(--c, #6cf79d);
+      opacity: 0.95;
+      transform: translate(calc(-50% + var(--x) * 1px), calc(-50% + var(--y) * 1px));
       animation: drift ease-in-out infinite alternate;
       animation-duration: calc(var(--d, 12) * 1s);
     }
@@ -153,35 +147,43 @@
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
       <div class="matrix-overlay">
-        <div class="matrix-typed" id="matrixTyped"></div>
         <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
       </div>
     </div>
     <h1>Magic-Spelling</h1>
     <ul class="word-cloud">
-      <li style="--x: -120; --y: -110; --dx: 6; --dy: 10; --d: 12;">Tennis</li>
-      <li style="--x: 120; --y: -70; --dx: -10; --dy: 8; --d: 14;">Basketball</li>
-      <li style="--x: -160; --y: 40; --dx: 12; --dy: -6; --d: 13;">Chess</li>
-      <li style="--x: 150; --y: 60; --dx: -8; --dy: -12; --d: 15;">Football</li>
-      <li style="--x: -30; --y: 130; --dx: 10; --dy: -14; --d: 11;">badmiton</li>
+      <li style="--x: -230; --y: -200; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
+      <li style="--x: 240; --y: -170; --dx: -8; --dy: 6; --d: 16;">Basketball</li>
+      <li style="--x: -260; --y: 90; --dx: 10; --dy: -6; --d: 15;">Chess</li>
+      <li style="--x: 230; --y: 140; --dx: -6; --dy: -8; --d: 17;">Football</li>
+      <li style="--x: 0; --y: 230; --dx: 8; --dy: -10; --d: 13;">badmiton</li>
     </ul>
   </div>
   <script type="module">
     import * as THREE from "https://unpkg.com/three@0.161.0/build/three.module.js";
 
-    const randomColor = () => {
-      const hue = Math.floor(Math.random() * 360);
-      return `hsla(${hue}, 85%, 70%, 1)`;
+    const palette = [
+      "#ff6b6b", // red
+      "#ffb347", // orange
+      "#ffd166", // amber
+      "#7aa2ff", // soft blue
+      "#c084ff", // violet
+      "#6cf79d"  // mint (reserved for challenge flash)
+    ];
+
+    const nonGreenColor = () => {
+      const choices = palette.filter((c) => c !== "#6cf79d");
+      return choices[Math.floor(Math.random() * choices.length)];
     };
 
     const words = document.querySelectorAll(".word-cloud li");
     words.forEach((word, i) => {
       const updateColor = () => {
-        const c = randomColor();
+        const c = nonGreenColor();
         word.style.setProperty("--c", c);
       };
       updateColor();
-      setInterval(updateColor, 1800 + i * 250);
+      setInterval(updateColor, 2000 + i * 300);
     });
 
     const canvas = document.getElementById("bg");
@@ -238,11 +240,7 @@
     window.addEventListener("resize", resizeMatrix);
 
     // Matrix typing overlay in blood-red style
-    const matrixTyped = document.getElementById("matrixTyped");
     const matrixInput = document.getElementById("matrixInput");
-    matrixInput.addEventListener("input", () => {
-      matrixTyped.textContent = matrixInput.value;
-    });
 
     const particleCount = 450;
     const spread = 260;
