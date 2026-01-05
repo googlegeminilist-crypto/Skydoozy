@@ -38,7 +38,68 @@
 
     .title-stack {
       position: relative;
-      display: inline-block;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .matrix-window {
+      position: relative;
+      width: min(420px, 80vw);
+      height: 140px;
+      background: rgba(7, 12, 18, 0.85);
+      border: 1px solid rgba(124, 255, 149, 0.5);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 14px rgba(124, 255, 149, 0.35);
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    #matrix {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 0 6px rgba(124, 255, 149, 0.6));
+      position: absolute;
+      inset: 0;
+    }
+
+    .matrix-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 10px;
+      pointer-events: none;
+    }
+
+    .matrix-typed {
+      color: #ff3b3b;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      text-shadow: 0 0 6px rgba(255, 45, 45, 0.8), 0 0 10px rgba(255, 15, 15, 0.7);
+      min-height: 1.2em;
+    }
+
+    .matrix-input {
+      pointer-events: auto;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 45, 45, 0.6);
+      border-radius: 6px;
+      color: #ff3b3b;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      padding: 8px 10px;
+      width: 100%;
+      box-shadow: 0 0 12px rgba(255, 45, 45, 0.35);
+      outline: none;
+    }
+
+    .matrix-input::placeholder {
+      color: rgba(255, 80, 80, 0.7);
     }
 
     .word-cloud {
@@ -89,6 +150,13 @@
 <body>
   <canvas id="bg"></canvas>
   <div class="title-stack">
+    <div class="matrix-window">
+      <canvas id="matrix"></canvas>
+      <div class="matrix-overlay">
+        <div class="matrix-typed" id="matrixTyped"></div>
+        <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
+      </div>
+    </div>
     <h1>Magic-Spelling</h1>
     <ul class="word-cloud">
       <li style="--x: -120; --y: -110; --dx: 6; --dy: 10; --d: 12;">Tennis</li>
@@ -123,6 +191,58 @@
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Matrix window
+    const matrixCanvas = document.getElementById("matrix");
+    const matrixCtx = matrixCanvas.getContext("2d");
+    const matrixChars = "アァカサタナハマヤャラワ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let matrixColumns = [];
+    let matrixHeight = 0;
+    let lastMatrixTime = 0;
+    const matrixInterval = 140; // slow down updates
+
+    const resizeMatrix = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = matrixCanvas.getBoundingClientRect();
+      matrixCanvas.width = rect.width * dpr;
+      matrixCanvas.height = rect.height * dpr;
+      matrixCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      matrixHeight = rect.height;
+      const columnWidth = 12;
+      const columns = Math.floor(rect.width / columnWidth);
+      matrixColumns = Array(columns).fill(0);
+    };
+
+    const drawMatrix = (ts = 0) => {
+      if (ts - lastMatrixTime > matrixInterval) {
+        matrixCtx.fillStyle = "rgba(7, 12, 18, 0.35)";
+        matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+        matrixCtx.fillStyle = "#7cff95";
+        matrixCtx.font = "14px 'Courier New', monospace";
+
+        matrixColumns.forEach((y, i) => {
+          const text = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+          const x = i * 12;
+          matrixCtx.fillText(text, x, y);
+          const nextY = y + (2 + Math.random() * 2.5); // slower fall
+          matrixColumns[i] = nextY > matrixHeight + 20 ? 0 : nextY;
+        });
+        lastMatrixTime = ts;
+      }
+      requestAnimationFrame(drawMatrix);
+    };
+
+    resizeMatrix();
+    drawMatrix();
+    window.addEventListener("resize", resizeMatrix);
+
+    // Matrix typing overlay in blood-red style
+    const matrixTyped = document.getElementById("matrixTyped");
+    const matrixInput = document.getElementById("matrixInput");
+    matrixInput.addEventListener("input", () => {
+      matrixTyped.textContent = matrixInput.value;
+    });
 
     const particleCount = 450;
     const spread = 260;
