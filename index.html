@@ -476,10 +476,12 @@
 
     const material = new THREE.PointsMaterial({
       color: "#5cf29b",
-      size: 2.4,
+      size: 2.6,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.95
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
 
     const points = new THREE.Points(geometry, material);
@@ -506,10 +508,12 @@
     farGeometry.setAttribute("position", new THREE.BufferAttribute(farPositions, 3));
     const farMaterial = new THREE.PointsMaterial({
       color: "#7aa2ff",
-      size: 1.6,
+      size: 1.8,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.75
+      opacity: 0.7,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
     const farPoints = new THREE.Points(farGeometry, farMaterial);
     scene.add(farPoints);
@@ -533,13 +537,27 @@
     nearGeometry.setAttribute("position", new THREE.BufferAttribute(nearPositions, 3));
     const nearMaterial = new THREE.PointsMaterial({
       color: "#c6f7ff",
-      size: 3.4,
+      size: 3.8,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
     const nearPoints = new THREE.Points(nearGeometry, nearMaterial);
     scene.add(nearPoints);
+
+    // Hologram grid to anchor particles in room space
+    const gridMaterial = new THREE.MeshBasicMaterial({
+      color: 0x3ee0ff,
+      transparent: true,
+      opacity: 0.05,
+      wireframe: true
+    });
+    const grid = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 80, 80), gridMaterial);
+    grid.rotation.x = -Math.PI / 2.2;
+    grid.position.y = -80;
+    scene.add(grid);
 
     const pointerTarget = { x: 0, y: 0 };
     window.addEventListener("pointermove", (event) => {
@@ -606,6 +624,9 @@
       scene.rotation.x += 0.0004;
       scene.rotation.y += pointerTarget.x * 0.0015;
       scene.rotation.x += pointerTarget.y * 0.0008;
+      grid.rotation.y = Math.sin(t * 0.2) * 0.08 + pointerTarget.x * 0.08;
+      grid.material.opacity = 0.04 + Math.abs(Math.sin(t * 0.6)) * 0.03;
+      nearMaterial.color.setHSL((0.55 + Math.sin(t * 0.4) * 0.05) % 1, 0.8, 0.7);
       const targetX = pointerTarget.x * 22;
       const targetY = pointerTarget.y * 14;
       const targetZ = 360 + Math.sin(t * 0.35) * 14 + pointerTarget.y * 14;
