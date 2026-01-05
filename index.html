@@ -55,10 +55,8 @@
       position: absolute;
       font-size: 1.1rem;
       font-weight: 600;
-      color: #6cf79d;
-      text-shadow:
-        0 0 8px rgba(108, 247, 157, 0.9),
-        0 0 16px rgba(108, 247, 157, 0.5);
+      color: var(--c, #6cf79d);
+      text-shadow: 0 0 8px var(--c, #6cf79d), 0 0 16px var(--c, #6cf79d);
       opacity: 0.9;
       transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
       animation: drift ease-in-out infinite alternate;
@@ -102,6 +100,21 @@
   </div>
   <script type="module">
     import * as THREE from "https://unpkg.com/three@0.161.0/build/three.module.js";
+
+    const randomColor = () => {
+      const hue = Math.floor(Math.random() * 360);
+      return `hsla(${hue}, 85%, 70%, 1)`;
+    };
+
+    const words = document.querySelectorAll(".word-cloud li");
+    words.forEach((word, i) => {
+      const updateColor = () => {
+        const c = randomColor();
+        word.style.setProperty("--c", c);
+      };
+      updateColor();
+      setInterval(updateColor, 1800 + i * 250);
+    });
 
     const canvas = document.getElementById("bg");
     const scene = new THREE.Scene();
