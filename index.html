@@ -21,6 +21,7 @@
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       position: relative;
       overflow: hidden;
+      cursor: none;
     }
 
     h1 {
@@ -92,6 +93,16 @@
 
     .matrix-input::placeholder {
       color: rgba(255, 80, 80, 0.7);
+    }
+
+    #cursor-canvas {
+      position: fixed;
+      width: 120px;
+      height: 120px;
+      pointer-events: none;
+      z-index: 10;
+      transform: translate(-50%, -50%);
+      filter: drop-shadow(0 0 12px rgba(108, 247, 157, 0.6)) drop-shadow(0 0 18px rgba(77, 166, 255, 0.35));
     }
 
     .score-banner {
@@ -172,6 +183,7 @@
 <body>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
   <audio id="bgAudio" src="The World.mp3" preload="auto" loop></audio>
+  <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <div class="title-stack">
     <div class="matrix-window">
@@ -207,6 +219,7 @@
 
     const scoreValue = document.getElementById("scoreValue");
     const bgAudio = document.getElementById("bgAudio");
+    const cursorCanvas = document.getElementById("cursor-canvas");
     let score = 0;
     const setScore = (val) => {
       score = val;
@@ -377,6 +390,67 @@
     });
 
     scheduleTimeout = setTimeout(startChallenge, 9000);
+
+    // Alien-flower cursor built with Three.js
+    const cursorScene = new THREE.Scene();
+    const cursorCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
+    cursorCamera.position.z = 3;
+
+    const cursorRenderer = new THREE.WebGLRenderer({ canvas: cursorCanvas, alpha: true });
+    cursorRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    cursorRenderer.setSize(120, 120, false);
+
+    const cursorLight = new THREE.PointLight(0x7cff95, 1.4, 10);
+    cursorLight.position.set(1.2, 1.2, 2);
+    cursorScene.add(cursorLight);
+    cursorScene.add(new THREE.AmbientLight(0x3a9eff, 0.6));
+
+    const petalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x4da6ff,
+      emissive: 0x1b7bff,
+      metalness: 0.5,
+      roughness: 0.2
+    });
+    const petal = new THREE.Mesh(new THREE.TorusKnotGeometry(0.65, 0.18, 120, 32), petalMaterial);
+    cursorScene.add(petal);
+
+    const coreMaterial = new THREE.MeshStandardMaterial({
+      color: 0x9dffce,
+      emissive: 0x5bff9f,
+      metalness: 0.3,
+      roughness: 0.25
+    });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 16), coreMaterial);
+    cursorScene.add(core);
+
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(0.9, 0.04, 16, 60),
+      new THREE.MeshBasicMaterial({ color: 0xb0fffb, transparent: true, opacity: 0.55 })
+    );
+    halo.rotation.x = Math.PI / 3;
+    cursorScene.add(halo);
+
+    let cursorTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const updateCursorPosition = (event) => {
+      cursorTarget = { x: event.clientX, y: event.clientY };
+      cursorCanvas.style.left = `${cursorTarget.x}px`;
+      cursorCanvas.style.top = `${cursorTarget.y}px`;
+    };
+    window.addEventListener("pointermove", updateCursorPosition);
+
+    const animateCursor = () => {
+      const t = performance.now() * 0.001;
+      petal.rotation.x = t * 0.8;
+      petal.rotation.y = t * 1.2;
+      core.scale.setScalar(1 + Math.sin(t * 2) * 0.06);
+      halo.rotation.z = t * 0.6;
+      cursorRenderer.render(cursorScene, cursorCamera);
+      requestAnimationFrame(animateCursor);
+    };
+    // position initially
+    cursorCanvas.style.left = `${cursorTarget.x}px`;
+    cursorCanvas.style.top = `${cursorTarget.y}px`;
+    animateCursor();
 
     const particleCount = 450;
     const spread = 260;
