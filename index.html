@@ -418,6 +418,7 @@
         setScore(score + 10);
         endChallenge("You got it right.");
       } else {
+        setScore(score - 10);
         challengeStatus.textContent = "Try again.";
       }
     };
