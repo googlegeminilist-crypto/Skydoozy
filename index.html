@@ -312,21 +312,51 @@
     const words = Array.from(document.querySelectorAll(".word-cloud li"));
     const wordCloud = document.querySelector(".word-cloud");
     const matrixWindow = document.querySelector(".matrix-window");
+    const orbitDuration = 22;
     const randomizeWordPosition = (word) => {
       if (!wordCloud) return;
       const cloudRect = wordCloud.getBoundingClientRect();
       const minScreen = Math.min(cloudRect.width, cloudRect.height);
       const matrixRect = matrixWindow ? matrixWindow.getBoundingClientRect() : null;
       const matrixRadius = matrixRect
-        ? Math.hypot(matrixRect.width, matrixRect.height) * 0.5 + 50
-        : 140;
+        ? Math.hypot(matrixRect.width, matrixRect.height) * 0.5 + 60
+        : 160;
       const maxRadius = Math.max(matrixRadius + 40, minScreen * 0.42);
-      const radius = randomRange(matrixRadius, maxRadius);
-      const angle = randomRange(0, 360);
+      const fontSize = parseFloat(getComputedStyle(word).fontSize) || 24;
+      const approxWidth = word.textContent.trim().length * fontSize * 0.6;
+      const approxHeight = fontSize * 1.1;
+      const wordRadius = Math.hypot(approxWidth, approxHeight) * 0.5 + 10;
 
+      let radius = randomRange(matrixRadius, maxRadius);
+      let angle = randomRange(0, 360);
+      let x = 0;
+      let y = 0;
+      let tries = 0;
+      do {
+        radius = randomRange(matrixRadius, maxRadius);
+        angle = randomRange(0, 360);
+        const angleRad = (angle * Math.PI) / 180;
+        x = Math.cos(angleRad) * radius;
+        y = Math.sin(angleRad) * radius;
+        tries += 1;
+      } while (
+        tries < 60 &&
+        words.some((other) => {
+          if (other === word || other.style.visibility === "hidden") return false;
+          const ox = parseFloat(other.dataset.orbitX || "0");
+          const oy = parseFloat(other.dataset.orbitY || "0");
+          const or = parseFloat(other.dataset.orbitR || "0");
+          const dist = Math.hypot(x - ox, y - oy);
+          return dist < wordRadius + or + 16;
+        })
+      );
+
+      word.dataset.orbitX = x.toFixed(2);
+      word.dataset.orbitY = y.toFixed(2);
+      word.dataset.orbitR = wordRadius.toFixed(2);
       word.style.setProperty("--r", Math.round(radius));
       word.style.setProperty("--a", `${angle.toFixed(1)}deg`);
-      word.style.setProperty("--d", randomRange(14, 22).toFixed(1));
+      word.style.setProperty("--d", orbitDuration.toFixed(1));
     };
     words.forEach((word, i) => {
       const updateColor = () => {
