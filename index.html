@@ -48,6 +48,55 @@
       gap: 18px;
     }
 
+    .title-light {
+      position: relative;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: transparent;
+      box-shadow:
+        0 0 14px rgba(125, 200, 255, 0.85),
+        0 0 32px rgba(160, 120, 255, 0.55),
+        0 0 70px rgba(90, 255, 190, 0.4);
+      filter: blur(0.6px) hue-rotate(0deg);
+      animation: title-pulse 3s ease-in-out infinite, title-hue 12s linear infinite;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .title-light::before {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0) 0 35%, rgba(120, 230, 255, 0.55) 45%, rgba(180, 120, 255, 0.4) 62%, rgba(0, 0, 0, 0) 78%);
+      filter: blur(6px);
+    }
+
+    @keyframes title-pulse {
+      0% {
+        transform: scale(0.85);
+        opacity: 0.8;
+      }
+      50% {
+        transform: scale(1.12);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.85);
+        opacity: 0.82;
+      }
+    }
+
+    @keyframes title-hue {
+      from {
+        filter: blur(0.2px) hue-rotate(0deg);
+      }
+      to {
+        filter: blur(0.2px) hue-rotate(360deg);
+      }
+    }
+
     .matrix-window {
       position: relative;
       width: min(420px, 80vw);
@@ -252,6 +301,7 @@
         <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
       </div>
     </div>
+    <div class="title-light" aria-hidden="true"></div>
     <h1>Skydoozy</h1>
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
