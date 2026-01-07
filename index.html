@@ -294,7 +294,7 @@
     </a>
   </div>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
-  <audio id="bgAudio" src="The%20World.mp3" preload="auto" loop></audio>
+  <audio id="bgAudio" src="The%20World.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <div class="title-stack">
@@ -335,7 +335,9 @@
     const scoreValue = document.getElementById("scoreValue");
     const bgAudio = document.getElementById("bgAudio");
     const cursorCanvas = document.getElementById("cursor-canvas");
-    const titleLightElement = document.querySelector(".title-light");
+    const playlist = ["The%20World.mp3", "lifted%20my%20spirit.mp3"];
+    let playlistIndex = Math.floor(Math.random() * playlist.length);
+    let playlistReady = false;
     let score = 0;
     const setScore = (val) => {
       score = Math.max(0, val);
@@ -344,14 +346,34 @@
     setScore(score);
 
     // Try to auto-start the looping track; if blocked, start on first user interaction.
-    const startAudio = () => {
-      if (!bgAudio) return;
-      bgAudio.volume = 0.6;
-      bgAudio.loop = true;
+    const playTrack = (index) => {
+      playlistIndex = (index + playlist.length) % playlist.length;
+      bgAudio.src = playlist[playlistIndex];
+      bgAudio.load();
       bgAudio.play().catch(() => {
         // Browser blocked autoplay; will retry on user interaction.
       });
     };
+
+    const startAudio = () => {
+      if (!bgAudio) return;
+      bgAudio.volume = 0.6;
+      bgAudio.loop = false;
+      if (!playlistReady) {
+        playlistReady = true;
+        playTrack(playlistIndex);
+      } else if (bgAudio.paused) {
+        bgAudio.play().catch(() => {
+          // Browser blocked autoplay; will retry on user interaction.
+        });
+      }
+    };
+    if (bgAudio) {
+      bgAudio.addEventListener("ended", () => {
+        if (!playlistReady) return;
+        playTrack(playlistIndex + 1);
+      });
+    }
     startAudio();
     window.addEventListener(
       "click",
@@ -1163,7 +1185,7 @@
     jungleGroup.position.y = -40;
     scene.add(jungleGroup);
 
-    const orbitLightCenter = new THREE.Vector3(0, 35, -60);
+    const orbitLightCenter = new THREE.Vector3(0, 35, -40);
     const orbitGlowTexture = (() => {
       const size = 128;
       const glowCanvas = document.createElement("canvas");
@@ -1203,7 +1225,7 @@
     heroLightGroup.add(heroGlow);
     heroLightGroup.add(heroLight);
     heroLightGroup.renderOrder = 4;
-    scene.add(heroLightGroup);
+    jungleGroup.add(heroLightGroup);
     const heroLightParams = {
       radius: 220,
       speed: 0.35,
@@ -1211,14 +1233,6 @@
       bob: 32,
       color: new THREE.Color()
     };
-    const uiLight = new THREE.PointLight(0xffffff, 2.6, 260, 2);
-    scene.add(uiLight);
-    const uiRay = new THREE.Ray();
-    const uiPlane = new THREE.Plane();
-    const uiNormal = new THREE.Vector3();
-    const uiLightWorld = new THREE.Vector3();
-    const uiNdc = new THREE.Vector3();
-
     const glowReactors = [];
     const glowTempPosition = new THREE.Vector3();
     const heroLightWorld = new THREE.Vector3();
@@ -1233,7 +1247,8 @@
           materials.push({
             material: mat,
             baseEmissive: mat.emissive.clone(),
-            baseIntensity: typeof mat.emissiveIntensity === "number" ? mat.emissiveIntensity : 0
+            baseIntensity: typeof mat.emissiveIntensity === "number" ? mat.emissiveIntensity : 0,
+            baseColor: mat.color ? mat.color.clone() : null
           });
         });
       });
@@ -1631,48 +1646,21 @@
       heroGlowMaterial.opacity = 0.72 + heroPulse * 0.26;
       heroGlow.scale.setScalar(54 + heroPulse * 18);
 
-      let uiLightActive = false;
-      if (titleLightElement) {
-        const rect = titleLightElement.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          uiNdc.set(
-            (rect.left + rect.width * 0.5) / window.innerWidth * 2 - 1,
-            -(rect.top + rect.height * 0.5) / window.innerHeight * 2 + 1,
-            0.5
-          );
-          uiNdc.unproject(camera);
-          uiRay.origin.copy(camera.position);
-          uiRay.direction.copy(uiNdc.sub(camera.position).normalize());
-          uiNormal.copy(cameraTarget).sub(camera.position).normalize();
-          uiPlane.setFromNormalAndCoplanarPoint(uiNormal, cameraTarget);
-          if (uiRay.intersectPlane(uiPlane, uiLightWorld)) {
-            uiLight.position.copy(uiLightWorld);
-            uiLightActive = true;
-          }
-        }
-      }
-      if (uiLightActive) {
-        uiLight.color.copy(heroLightParams.color);
-        uiLight.intensity = 2.4 + heroPulse * 1.4;
-      } else {
-        uiLight.intensity = 0;
-      }
-
       heroLightGroup.getWorldPosition(heroLightWorld);
       jungleGroup.updateWorldMatrix(true, true);
       glowReactors.forEach((reactor) => {
         reactor.group.getWorldPosition(glowTempPosition);
         const distance = glowTempPosition.distanceTo(heroLightWorld);
-        let influence = Math.max(0, 1 - distance / reactor.radius);
-        if (uiLightActive) {
-          const uiDistance = glowTempPosition.distanceTo(uiLightWorld);
-          influence = Math.max(influence, Math.max(0, 1 - uiDistance / (reactor.radius * 0.85)));
-        }
-        const pulse = 0.7 + Math.sin(t * 2.2 + reactor.seed) * 0.3;
-        const boost = influence * reactor.boost;
+        const influence = Math.max(0, 1 - distance / reactor.radius);
+        const flare = influence * influence;
+        const pulse = 0.6 + Math.sin(t * 3.1 + reactor.seed) * 0.4;
+        const boost = flare * reactor.boost;
         reactor.materials.forEach((entry) => {
-          entry.material.emissive.copy(entry.baseEmissive).lerp(heroLightParams.color, boost);
-          entry.material.emissiveIntensity = entry.baseIntensity + boost * 1.1 * pulse;
+          entry.material.emissive.copy(entry.baseEmissive).lerp(heroLightParams.color, boost * 1.15);
+          entry.material.emissiveIntensity = entry.baseIntensity + boost * 2.0 * pulse;
+          if (entry.baseColor) {
+            entry.material.color.copy(entry.baseColor).lerp(heroLightParams.color, boost * 0.75 * pulse);
+          }
         });
       });
 
