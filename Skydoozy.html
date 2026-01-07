@@ -633,6 +633,9 @@
     grid.rotation.x = -Math.PI / 2.2;
     grid.position.y = -80;
     scene.add(grid);
+    const floorPlane = new THREE.Plane();
+    const floorNormal = new THREE.Vector3();
+    const floorClearance = 8;
 
     const pointerTarget = { x: 0, y: 0 };
     window.addEventListener("pointermove", (event) => {
@@ -708,6 +711,13 @@
       camera.position.x += (targetX - camera.position.x) * 0.065;
       camera.position.y += (targetY - camera.position.y) * 0.065;
       camera.position.z += (targetZ - camera.position.z) * 0.04;
+      floorNormal.set(0, 0, 1).applyQuaternion(grid.quaternion);
+      if (floorNormal.y < 0) floorNormal.negate();
+      floorPlane.setFromNormalAndCoplanarPoint(floorNormal, grid.position);
+      const distanceToFloor = floorPlane.distanceToPoint(camera.position);
+      if (distanceToFloor < floorClearance) {
+        camera.position.addScaledVector(floorNormal, floorClearance - distanceToFloor);
+      }
       camera.lookAt(0, 0, 0);
 
       renderer.render(scene, camera);
