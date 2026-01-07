@@ -166,6 +166,14 @@
       text-shadow: 0 0 8px rgba(77, 166, 255, 0.55);
     }
 
+    .matrix-microcopy {
+      color: rgba(155, 213, 255, 0.85);
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 6px rgba(77, 166, 255, 0.45);
+      pointer-events: none;
+    }
+
     .word-cloud {
       list-style: none;
       padding: 0;
@@ -228,9 +236,10 @@
       <canvas id="matrix"></canvas>
       <div class="matrix-overlay">
         <div class="matrix-hint">
-          <span id="challengeStatus">Waiting…</span>
+          <span id="challengeStatus">When words disappear type here</span>
           <span id="challengeTimer">--</span>
         </div>
+        <div class="matrix-microcopy">If correct get 10 points. If not, lose 10 points.</div>
         <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
       </div>
     </div>
@@ -260,7 +269,7 @@
     const cursorCanvas = document.getElementById("cursor-canvas");
     let score = 0;
     const setScore = (val) => {
-      score = val;
+      score = Math.max(0, val);
       scoreValue.textContent = score;
     };
     setScore(score);
