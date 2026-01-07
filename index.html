@@ -75,15 +75,15 @@
 
     @keyframes title-pulse {
       0% {
-        transform: scale(0.85);
+        transform: translate(-18px, -6px) scale(0.85);
         opacity: 0.8;
       }
       50% {
-        transform: scale(1.12);
+        transform: translate(18px, 8px) scale(1.12);
         opacity: 1;
       }
       100% {
-        transform: scale(0.85);
+        transform: translate(-18px, -6px) scale(0.85);
         opacity: 0.82;
       }
     }
@@ -1154,6 +1154,82 @@
     jungleGroup.position.y = -40;
     scene.add(jungleGroup);
 
+    const orbitLightCenter = new THREE.Vector3(0, 35, -60);
+    const orbitGlowTexture = (() => {
+      const size = 128;
+      const glowCanvas = document.createElement("canvas");
+      glowCanvas.width = size;
+      glowCanvas.height = size;
+      const ctx = glowCanvas.getContext("2d");
+      const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+      gradient.addColorStop(0.35, "rgba(135, 220, 255, 0.85)");
+      gradient.addColorStop(0.6, "rgba(200, 130, 255, 0.6)");
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+      const texture = new THREE.CanvasTexture(glowCanvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    })();
+
+    const heroLightGroup = new THREE.Group();
+    const heroGlowMaterial = new THREE.SpriteMaterial({
+      map: orbitGlowTexture,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: false
+    });
+    const heroGlow = new THREE.Sprite(heroGlowMaterial);
+    heroGlow.scale.setScalar(62);
+    const heroLight = new THREE.PointLight(0xffffff, 5.0, 360, 2);
+    heroLightGroup.add(heroGlow);
+    heroLightGroup.add(heroLight);
+    heroLightGroup.renderOrder = 4;
+    scene.add(heroLightGroup);
+    const heroLightParams = {
+      radius: 220,
+      speed: 0.35,
+      phase: Math.random() * Math.PI * 2,
+      bob: 32,
+      color: new THREE.Color()
+    };
+
+    const glowReactors = [];
+    const glowTempPosition = new THREE.Vector3();
+    const heroLightWorld = new THREE.Vector3();
+
+    const registerGlowGroup = (group, radius, boost) => {
+      const materials = [];
+      group.traverse((child) => {
+        if (!child.isMesh || !child.material) return;
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach((mat) => {
+          if (!mat || !mat.emissive) return;
+          materials.push({
+            material: mat,
+            baseEmissive: mat.emissive.clone(),
+            baseIntensity: typeof mat.emissiveIntensity === "number" ? mat.emissiveIntensity : 0
+          });
+        });
+      });
+      glowReactors.push({
+        group,
+        materials,
+        radius,
+        boost,
+        seed: Math.random() * Math.PI * 2
+      });
+    };
+
     const jungleStemPalette = [0x1c6a2f, 0x2f7d32, 0x3a8c3e, 0x2a6b2a];
     const junglePetalPalette = [
       0xff2d7a, // magenta-pink
@@ -1346,6 +1422,7 @@
       plant.rotation.y = randomRange(0, Math.PI * 2);
       plant.scale.setScalar(randomRange(1.1, 1.8));
       jungleGroup.add(plant);
+      registerGlowGroup(plant, 140, 1.0);
     }
 
     const buildBluebell = () => {
@@ -1429,6 +1506,7 @@
       bluebell.rotation.y = randomRange(0, Math.PI * 2);
       bluebell.scale.setScalar(randomRange(2.5, 3.4));
       jungleGroup.add(bluebell);
+      registerGlowGroup(bluebell, 120, 1.0);
     }
 
     const resize = () => {
@@ -1520,6 +1598,36 @@
       camera.lookAt(cameraTarget);
 
       jungleGroup.rotation.y = t * orbitSpeed;
+
+      const heroAngle = t * heroLightParams.speed + heroLightParams.phase;
+      const heroAngleZ = t * (heroLightParams.speed * 0.82) + heroLightParams.phase * 0.6;
+      const heroBob = Math.sin(t * 0.7 + heroLightParams.phase) * heroLightParams.bob;
+      heroLightGroup.position.set(
+        orbitLightCenter.x + Math.cos(heroAngle) * heroLightParams.radius,
+        orbitLightCenter.y + heroBob,
+        orbitLightCenter.z + Math.sin(heroAngleZ) * heroLightParams.radius * 0.75
+      );
+      heroLightParams.color.setHSL((t * 0.06) % 1, 0.85, 0.7);
+      heroLight.color.copy(heroLightParams.color);
+      heroGlowMaterial.color.copy(heroLightParams.color);
+      const heroPulse = 0.85 + Math.sin(t * 2.1 + heroLightParams.phase) * 0.4;
+      heroLight.intensity = 4.4 + heroPulse * 2.0;
+      heroGlowMaterial.opacity = 0.72 + heroPulse * 0.26;
+      heroGlow.scale.setScalar(54 + heroPulse * 18);
+
+      heroLightGroup.getWorldPosition(heroLightWorld);
+      jungleGroup.updateWorldMatrix(true, true);
+      glowReactors.forEach((reactor) => {
+        reactor.group.getWorldPosition(glowTempPosition);
+        const distance = glowTempPosition.distanceTo(heroLightWorld);
+        const influence = Math.max(0, 1 - distance / reactor.radius);
+        const pulse = 0.7 + Math.sin(t * 2.2 + reactor.seed) * 0.3;
+        const boost = influence * reactor.boost;
+        reactor.materials.forEach((entry) => {
+          entry.material.emissive.copy(entry.baseEmissive).lerp(heroLightParams.color, boost);
+          entry.material.emissiveIntensity = entry.baseIntensity + boost * 1.1 * pulse;
+        });
+      });
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
