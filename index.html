@@ -288,7 +288,7 @@
       return choices[Math.floor(Math.random() * choices.length)];
     };
 
-    const words = document.querySelectorAll(".word-cloud li");
+    const words = Array.from(document.querySelectorAll(".word-cloud li"));
     words.forEach((word, i) => {
       const updateColor = () => {
         const c = nonGreenColor();
@@ -297,6 +297,29 @@
       updateColor();
       setInterval(updateColor, 2000 + i * 300);
     });
+
+    let wordBag = [];
+    let lastWord = null;
+
+    const refillBag = () => {
+      wordBag = words.slice();
+      for (let i = wordBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [wordBag[i], wordBag[j]] = [wordBag[j], wordBag[i]];
+      }
+      if (lastWord && wordBag.length > 1 && wordBag[0] === lastWord) {
+        const swapIdx = 1 + Math.floor(Math.random() * (wordBag.length - 1));
+        [wordBag[0], wordBag[swapIdx]] = [wordBag[swapIdx], wordBag[0]];
+      }
+    };
+
+    const pickNextWord = () => {
+      if (words.length === 0) return null;
+      if (wordBag.length === 0) refillBag();
+      const next = wordBag.pop();
+      lastWord = next;
+      return next;
+    };
 
     const canvas = document.getElementById("bg");
     const scene = new THREE.Scene();
@@ -400,7 +423,11 @@
       clearTimeout(scheduleTimeout);
       challengeActive = true;
       challengeStatus.textContent = "A word vanished! Type it in the red box.";
-      activeWord = words[Math.floor(Math.random() * words.length)];
+      activeWord = pickNextWord();
+      if (!activeWord) {
+        challengeActive = false;
+        return;
+      }
       activeWord.style.visibility = "hidden";
       timeLeft = 20;
       updateTimer();
