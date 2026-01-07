@@ -21,6 +21,9 @@
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       position: relative;
       overflow: hidden;
+    }
+
+    body.has-3d-cursor {
       cursor: none;
     }
 
@@ -252,8 +255,8 @@
       <li style="--x: 0; --y: 230; --dx: 8; --dy: -10; --d: 13;">badmiton</li>
     </ul>
   </div>
-  <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.161.0/build/three.module.js";
+  <script src="three.min.js"></script>
+  <script>
 
     const palette = [
       "#ff6b6b", // red
@@ -330,12 +333,16 @@
       return next;
     };
 
-    const canvas = document.getElementById("bg");
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0b1020, 0.0025);
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1400);
-    camera.position.z = 220;
-    camera.position.y = 6;
+    if (!window.THREE) {
+      console.warn("Three.js failed to load. Make sure three.min.js is next to index.html.");
+    } else {
+      document.body.classList.add("has-3d-cursor");
+      const canvas = document.getElementById("bg");
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x0b1020, 0.0025);
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1400);
+      camera.position.z = 220;
+      camera.position.y = 6;
     const fixedCameraPosition = new THREE.Vector3(0, 6, 220);
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
@@ -470,44 +477,304 @@
 
     scheduleTimeout = setTimeout(startChallenge, 9000);
 
-    // Alien-flower cursor built with Three.js
+    // Jungle-plant cursor built with Three.js
     const cursorScene = new THREE.Scene();
-    const cursorCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
-    cursorCamera.position.z = 3;
+    const cursorCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 30);
+    cursorCamera.position.set(0.05, 0.35, 5.4);
 
     const cursorRenderer = new THREE.WebGLRenderer({ canvas: cursorCanvas, alpha: true });
     cursorRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     cursorRenderer.setSize(120, 120, false);
+    cursorRenderer.setClearColor(0x000000, 0);
 
-    const cursorLight = new THREE.PointLight(0x7cff95, 1.4, 10);
-    cursorLight.position.set(1.2, 1.2, 2);
+    const cursorLight = new THREE.PointLight(0xb6ffd6, 1.2, 12);
+    cursorLight.position.set(1.4, 1.6, 2.2);
     cursorScene.add(cursorLight);
-    cursorScene.add(new THREE.AmbientLight(0x3a9eff, 0.6));
+    cursorScene.add(new THREE.AmbientLight(0x2f6b4b, 0.75));
+    const cursorFill = new THREE.DirectionalLight(0xffffff, 0.55);
+    cursorFill.position.set(-1.4, 1.2, 1.6);
+    cursorScene.add(cursorFill);
 
-    const petalMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4da6ff,
-      emissive: 0x1b7bff,
-      metalness: 0.5,
-      roughness: 0.2
+    const cursorPlant = new THREE.Group();
+    cursorScene.add(cursorPlant);
+    cursorPlant.scale.setScalar(0.82);
+    cursorPlant.position.y = -0.35;
+
+    const stemMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0b3f44,
+      roughness: 0.35,
+      metalness: 0.35,
+      emissive: 0x0a2a2a,
+      emissiveIntensity: 0.35
     });
-    const petal = new THREE.Mesh(new THREE.TorusKnotGeometry(0.65, 0.18, 120, 32), petalMaterial);
-    cursorScene.add(petal);
 
-    const coreMaterial = new THREE.MeshStandardMaterial({
-      color: 0x9dffce,
-      emissive: 0x5bff9f,
-      metalness: 0.3,
-      roughness: 0.25
-    });
-    const core = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 16), coreMaterial);
-    cursorScene.add(core);
+    const makeStem = (points, radius) => {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geometry = new THREE.TubeGeometry(curve, 80, radius, 12, false);
+      return new THREE.Mesh(geometry, stemMaterial);
+    };
 
-    const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(0.9, 0.04, 16, 60),
-      new THREE.MeshBasicMaterial({ color: 0xb0fffb, transparent: true, opacity: 0.55 })
+    const mainStem = makeStem(
+      [
+        new THREE.Vector3(0, -1.4, 0),
+        new THREE.Vector3(-0.1, -0.5, 0.1),
+        new THREE.Vector3(0.15, 0.6, -0.05),
+        new THREE.Vector3(-0.05, 1.4, 0.12),
+        new THREE.Vector3(0.08, 2.2, 0.1)
+      ],
+      0.28
     );
-    halo.rotation.x = Math.PI / 3;
-    cursorScene.add(halo);
+    cursorPlant.add(mainStem);
+
+    const sideStem = makeStem(
+      [
+        new THREE.Vector3(0.05, 0.3, 0.12),
+        new THREE.Vector3(0.55, 0.7, 0.2),
+        new THREE.Vector3(0.85, 1.1, 0.05),
+        new THREE.Vector3(1.1, 1.5, -0.1)
+      ],
+      0.14
+    );
+    cursorPlant.add(sideStem);
+
+    const backStem = makeStem(
+      [
+        new THREE.Vector3(-0.1, 0.1, -0.1),
+        new THREE.Vector3(-0.6, 0.5, -0.25),
+        new THREE.Vector3(-0.9, 0.9, -0.15),
+        new THREE.Vector3(-1.1, 1.2, 0.05)
+      ],
+      0.12
+    );
+    cursorPlant.add(backStem);
+
+    const root = new THREE.Mesh(
+      new THREE.SphereGeometry(0.85, 20, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x082f2f,
+        roughness: 0.6,
+        metalness: 0.2,
+        emissive: 0x061a1a,
+        emissiveIntensity: 0.25
+      })
+    );
+    root.scale.set(1.4, 0.6, 1.15);
+    root.position.y = -1.5;
+    cursorPlant.add(root);
+
+    const petalTexture = (() => {
+      const size = 256;
+      const petalCanvas = document.createElement("canvas");
+      petalCanvas.width = size;
+      petalCanvas.height = size;
+      const ctx = petalCanvas.getContext("2d");
+
+      const gradient = ctx.createLinearGradient(0, size, 0, 0);
+      gradient.addColorStop(0, "#0b2a4d");
+      gradient.addColorStop(0.35, "#1e6dff");
+      gradient.addColorStop(0.6, "#ff5fd6");
+      gradient.addColorStop(0.8, "#ffb86b");
+      gradient.addColorStop(1, "#8af4ff");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+
+      ctx.globalCompositeOperation = "screen";
+      const edge = ctx.createLinearGradient(0, 0, size, 0);
+      edge.addColorStop(0, "rgba(120, 240, 255, 0.9)");
+      edge.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+      edge.addColorStop(1, "rgba(120, 240, 255, 0.9)");
+      ctx.fillStyle = edge;
+      ctx.fillRect(0, 0, size, size);
+
+      const glow = ctx.createRadialGradient(size * 0.5, size * 0.2, 10, size * 0.5, size * 0.2, size * 0.6);
+      glow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+      glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, size, size);
+
+      ctx.globalCompositeOperation = "source-over";
+
+      const texture = new THREE.CanvasTexture(petalCanvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    })();
+
+    const makePetalMaterial = (tint) => new THREE.MeshStandardMaterial({
+      map: petalTexture,
+      color: tint,
+      transparent: true,
+      side: THREE.DoubleSide,
+      roughness: 0.35,
+      metalness: 0.12,
+      emissive: 0x3a0f3f,
+      emissiveIntensity: 0.6,
+      emissiveMap: petalTexture
+    });
+
+    const makePetalGeometry = (width, height, bend, curl) => {
+      const geometry = new THREE.PlaneGeometry(width, height, 22, 12);
+      geometry.translate(0, height * 0.25, 0);
+      const pos = geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const yNorm = (y + height * 0.5) / height;
+        const xNorm = x / (width * 0.5);
+        const arch = Math.sin(yNorm * Math.PI) * bend;
+        const edgeCurl = Math.pow(Math.abs(xNorm), 1.6) * curl;
+        const ruffle = Math.sin((yNorm * 6 + xNorm * 2) * Math.PI) * 0.02;
+        const taper = 1 - yNorm * 0.35;
+        pos.setZ(i, arch + edgeCurl + ruffle);
+        pos.setX(i, x * taper);
+      }
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+
+    const outerGeometry = makePetalGeometry(1.35, 1.2, 0.26, 0.2);
+    const innerGeometry = makePetalGeometry(0.95, 0.95, 0.2, 0.15);
+    const petalTints = [0xffffff, 0xffe7ff, 0xd8f2ff, 0xffd8f0, 0xfff2cc];
+
+    const makeFlower = (position, scale, rotationY) => {
+      const flower = new THREE.Group();
+      flower.position.copy(position);
+      flower.scale.setScalar(scale);
+      flower.rotation.y = rotationY;
+      cursorPlant.add(flower);
+
+      for (let i = 0; i < 6; i++) {
+        const petal = new THREE.Mesh(outerGeometry, makePetalMaterial(petalTints[i % petalTints.length]));
+        petal.rotation.y = (i / 6) * Math.PI * 2;
+        petal.rotation.x = -0.55;
+        petal.rotation.z = -0.22;
+        petal.position.y = 0.05;
+        flower.add(petal);
+      }
+
+      for (let i = 0; i < 4; i++) {
+        const petal = new THREE.Mesh(innerGeometry, makePetalMaterial(petalTints[(i + 1) % petalTints.length]));
+        petal.rotation.y = (i / 4) * Math.PI * 2 + 0.4;
+        petal.rotation.x = -0.3;
+        petal.rotation.z = -0.12;
+        petal.position.y = 0.18;
+        petal.scale.set(0.9, 0.9, 0.9);
+        flower.add(petal);
+      }
+
+      const stamenGroup = new THREE.Group();
+      const stamenMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff6ad5,
+        emissive: 0xff5cc8,
+        emissiveIntensity: 0.7,
+        roughness: 0.4
+      });
+      const stamenGeometry = new THREE.CylinderGeometry(0.014, 0.02, 0.55, 8, 1);
+      for (let i = 0; i < 18; i++) {
+        const stamen = new THREE.Mesh(stamenGeometry, stamenMaterial);
+        const angle = (i / 18) * Math.PI * 2;
+        stamen.position.set(Math.cos(angle) * 0.09, 0.28, Math.sin(angle) * 0.09);
+        stamen.rotation.z = Math.PI / 2;
+        stamen.rotation.y = angle;
+        stamen.rotation.x = -0.7 + Math.random() * 0.3;
+        stamenGroup.add(stamen);
+      }
+      const flowerCore = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 18, 18),
+        new THREE.MeshStandardMaterial({
+          color: 0x7dffcb,
+          emissive: 0x36ff9b,
+          emissiveIntensity: 0.85,
+          roughness: 0.3
+        })
+      );
+      stamenGroup.add(flowerCore);
+      flower.add(stamenGroup);
+
+      return flower;
+    };
+
+    const mainFlower = makeFlower(new THREE.Vector3(0.05, 2.1, 0.05), 0.85, 0.2);
+    const sideFlower = makeFlower(new THREE.Vector3(1.05, 1.6, -0.05), 0.7, -0.5);
+    const backFlower = makeFlower(new THREE.Vector3(-1.0, 1.3, -0.1), 0.6, 0.9);
+
+    const stemPetalMaterial = makePetalMaterial(0xffffff);
+    const stemPetalGeometry = makePetalGeometry(0.55, 0.6, 0.16, 0.12);
+    const addStemPetals = (basePos, count, radius, heightStep, twist) => {
+      for (let i = 0; i < count; i++) {
+        const petal = new THREE.Mesh(stemPetalGeometry, stemPetalMaterial.clone());
+        const angle = i * twist;
+        const height = basePos.y + i * heightStep;
+        petal.material.color.setHSL((0.55 + i * 0.08) % 1, 0.9, 0.7);
+        petal.rotation.y = angle;
+        petal.rotation.x = -0.6;
+        petal.rotation.z = -0.25;
+        petal.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+        petal.scale.setScalar(0.6 + i * 0.08);
+        cursorPlant.add(petal);
+      }
+    };
+
+    addStemPetals(new THREE.Vector3(0, -0.4, 0), 5, 0.38, 0.32, 1.15);
+    addStemPetals(new THREE.Vector3(0.2, 0.2, 0.05), 4, 0.32, 0.3, 1.4);
+    addStemPetals(new THREE.Vector3(-0.15, 0.8, -0.05), 4, 0.3, 0.26, 1.6);
+
+    const tendrilMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff7ad9,
+      roughness: 0.4,
+      metalness: 0.2,
+      emissive: 0x812f5c,
+      emissiveIntensity: 0.6
+    });
+    const makeTendril = (points, radius) => {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geometry = new THREE.TubeGeometry(curve, 40, radius, 10, false);
+      return new THREE.Mesh(geometry, tendrilMaterial);
+    };
+    cursorPlant.add(
+      makeTendril(
+        [
+          new THREE.Vector3(0.2, 1.2, 0.2),
+          new THREE.Vector3(0.6, 1.4, 0.4),
+          new THREE.Vector3(0.9, 1.7, 0.1),
+          new THREE.Vector3(1.2, 1.9, -0.2)
+        ],
+        0.03
+      )
+    );
+    cursorPlant.add(
+      makeTendril(
+        [
+          new THREE.Vector3(-0.2, 0.9, -0.1),
+          new THREE.Vector3(-0.6, 1.1, -0.35),
+          new THREE.Vector3(-0.9, 1.3, -0.2),
+          new THREE.Vector3(-1.2, 1.45, 0.1)
+        ],
+        0.028
+      )
+    );
+
+    const glowMaterial = new THREE.MeshStandardMaterial({
+      color: 0x3fffd9,
+      emissive: 0x3fffd9,
+      emissiveIntensity: 1.0,
+      roughness: 0.2,
+      metalness: 0.1
+    });
+    const glowGeometry = new THREE.SphereGeometry(0.06, 12, 12);
+    for (let i = 0; i < 10; i++) {
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.position.set(
+        (Math.random() - 0.5) * 1.4,
+        0.3 + Math.random() * 1.7,
+        (Math.random() - 0.5) * 0.6
+      );
+      cursorPlant.add(glow);
+    }
 
     let cursorTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const updateCursorPosition = (event) => {
@@ -519,10 +786,9 @@
 
     const animateCursor = () => {
       const t = performance.now() * 0.001;
-      petal.rotation.x = t * 0.8;
-      petal.rotation.y = t * 1.2;
-      core.scale.setScalar(1 + Math.sin(t * 2) * 0.06);
-      halo.rotation.z = t * 0.6;
+      cursorPlant.rotation.y = t * 0.6;
+      cursorPlant.rotation.z = Math.sin(t * 0.8) * 0.12;
+      cursorPlant.rotation.x = Math.sin(t * 0.6) * 0.06;
       cursorRenderer.render(cursorScene, cursorCamera);
       requestAnimationFrame(animateCursor);
     };
@@ -707,9 +973,10 @@
       requestAnimationFrame(animate);
     };
 
-    window.addEventListener("resize", resize);
-    resize();
-    animate();
+      window.addEventListener("resize", resize);
+      resize();
+      animate();
+    }
   </script>
 </body>
 </html>
