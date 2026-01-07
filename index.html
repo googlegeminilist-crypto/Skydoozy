@@ -75,15 +75,23 @@
 
     @keyframes title-pulse {
       0% {
-        transform: translate(-18px, -6px) scale(0.85);
+        transform: translate(0px, -18px) scale(0.85);
         opacity: 0.8;
       }
+      25% {
+        transform: translate(26px, 0px) scale(1.02);
+        opacity: 0.95;
+      }
       50% {
-        transform: translate(18px, 8px) scale(1.12);
+        transform: translate(0px, 18px) scale(1.12);
         opacity: 1;
       }
+      75% {
+        transform: translate(-26px, 0px) scale(0.98);
+        opacity: 0.92;
+      }
       100% {
-        transform: translate(-18px, -6px) scale(0.85);
+        transform: translate(0px, -18px) scale(0.85);
         opacity: 0.82;
       }
     }
@@ -327,6 +335,7 @@
     const scoreValue = document.getElementById("scoreValue");
     const bgAudio = document.getElementById("bgAudio");
     const cursorCanvas = document.getElementById("cursor-canvas");
+    const titleLightElement = document.querySelector(".title-light");
     let score = 0;
     const setScore = (val) => {
       score = Math.max(0, val);
@@ -1202,6 +1211,13 @@
       bob: 32,
       color: new THREE.Color()
     };
+    const uiLight = new THREE.PointLight(0xffffff, 2.6, 260, 2);
+    scene.add(uiLight);
+    const uiRay = new THREE.Ray();
+    const uiPlane = new THREE.Plane();
+    const uiNormal = new THREE.Vector3();
+    const uiLightWorld = new THREE.Vector3();
+    const uiNdc = new THREE.Vector3();
 
     const glowReactors = [];
     const glowTempPosition = new THREE.Vector3();
@@ -1615,12 +1631,43 @@
       heroGlowMaterial.opacity = 0.72 + heroPulse * 0.26;
       heroGlow.scale.setScalar(54 + heroPulse * 18);
 
+      let uiLightActive = false;
+      if (titleLightElement) {
+        const rect = titleLightElement.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          uiNdc.set(
+            (rect.left + rect.width * 0.5) / window.innerWidth * 2 - 1,
+            -(rect.top + rect.height * 0.5) / window.innerHeight * 2 + 1,
+            0.5
+          );
+          uiNdc.unproject(camera);
+          uiRay.origin.copy(camera.position);
+          uiRay.direction.copy(uiNdc.sub(camera.position).normalize());
+          uiNormal.copy(cameraTarget).sub(camera.position).normalize();
+          uiPlane.setFromNormalAndCoplanarPoint(uiNormal, cameraTarget);
+          if (uiRay.intersectPlane(uiPlane, uiLightWorld)) {
+            uiLight.position.copy(uiLightWorld);
+            uiLightActive = true;
+          }
+        }
+      }
+      if (uiLightActive) {
+        uiLight.color.copy(heroLightParams.color);
+        uiLight.intensity = 2.4 + heroPulse * 1.4;
+      } else {
+        uiLight.intensity = 0;
+      }
+
       heroLightGroup.getWorldPosition(heroLightWorld);
       jungleGroup.updateWorldMatrix(true, true);
       glowReactors.forEach((reactor) => {
         reactor.group.getWorldPosition(glowTempPosition);
         const distance = glowTempPosition.distanceTo(heroLightWorld);
-        const influence = Math.max(0, 1 - distance / reactor.radius);
+        let influence = Math.max(0, 1 - distance / reactor.radius);
+        if (uiLightActive) {
+          const uiDistance = glowTempPosition.distanceTo(uiLightWorld);
+          influence = Math.max(influence, Math.max(0, 1 - uiDistance / (reactor.radius * 0.85)));
+        }
         const pulse = 0.7 + Math.sin(t * 2.2 + reactor.seed) * 0.3;
         const boost = influence * reactor.boost;
         reactor.materials.forEach((entry) => {
