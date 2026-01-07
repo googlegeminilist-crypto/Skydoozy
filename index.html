@@ -105,9 +105,41 @@
       filter: drop-shadow(0 0 12px rgba(108, 247, 157, 0.6)) drop-shadow(0 0 18px rgba(77, 166, 255, 0.35));
     }
 
+    .app-note {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(12, 20, 32, 0.75);
+      border: 1px solid rgba(155, 213, 255, 0.6);
+      color: #d5ebff;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-shadow: 0 0 10px rgba(155, 213, 255, 0.75);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+      z-index: 7;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+
+    .app-note a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(155, 213, 255, 0.6);
+      padding-bottom: 2px;
+    }
+
+    .app-note a:hover {
+      border-bottom-color: rgba(155, 213, 255, 1);
+    }
+
     .score-banner {
       position: fixed;
-      top: 12px;
+      top: 56px;
       left: 50%;
       transform: translateX(-50%);
       padding: 8px 16px;
@@ -182,6 +214,11 @@
   </style>
 </head>
 <body>
+  <div class="app-note">
+    <a href="https://apps.apple.com/dk/app/skybammy/id6755389661" target="_blank" rel="noopener noreferrer">
+      Download Skybammy App On Appl Store for more Fun Games: https://apps.apple.com/dk/app/skybammy/id6755389661
+    </a>
+  </div>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
   <audio id="bgAudio" src="The World.mp3" preload="auto" loop></audio>
   <canvas id="cursor-canvas"></canvas>
