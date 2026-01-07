@@ -196,20 +196,17 @@
       color: var(--c, #6cf79d);
       text-shadow: 0 0 10px var(--c, #6cf79d), 0 0 24px var(--c, #6cf79d);
       opacity: 0.95;
-      transform: translate(calc(-50% + var(--x) * 1px), calc(-50% + var(--y) * 1px));
-      animation: drift ease-in-out infinite alternate;
-      animation-duration: calc(var(--d, 12) * 1s);
+      transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateX(calc(var(--r, 220) * 1px)) rotate(calc(-1 * var(--a, 0deg)));
+      animation: drift linear infinite;
+      animation-duration: calc(var(--d, 16) * 1s);
     }
 
     @keyframes drift {
       0% {
-        transform: translate(calc(var(--x) * 1px), calc(var(--y) * 1px));
+        transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateX(calc(var(--r, 220) * 1px)) rotate(calc(-1 * var(--a, 0deg)));
       }
       100% {
-        transform: translate(
-          calc((var(--x) + var(--dx, 12)) * 1px),
-          calc((var(--y) + var(--dy, -10)) * 1px)
-        );
+        transform: translate(-50%, -50%) rotate(calc(var(--a, 0deg) + 360deg)) translateX(calc(var(--r, 220) * 1px)) rotate(calc(-1 * (var(--a, 0deg) + 360deg)));
         opacity: 0.82;
       }
     }
@@ -304,18 +301,39 @@
       { once: true }
     );
 
+    const randomRange = (min, max) => min + Math.random() * (max - min);
+
     const nonGreenColor = () => {
       const choices = palette.filter((c) => c !== "#6cf79d");
       return choices[Math.floor(Math.random() * choices.length)];
     };
 
     const words = Array.from(document.querySelectorAll(".word-cloud li"));
+    const wordCloud = document.querySelector(".word-cloud");
+    const matrixWindow = document.querySelector(".matrix-window");
+    const randomizeWordPosition = (word) => {
+      if (!wordCloud) return;
+      const cloudRect = wordCloud.getBoundingClientRect();
+      const minScreen = Math.min(cloudRect.width, cloudRect.height);
+      const matrixRect = matrixWindow ? matrixWindow.getBoundingClientRect() : null;
+      const matrixRadius = matrixRect
+        ? Math.hypot(matrixRect.width, matrixRect.height) * 0.5 + 50
+        : 140;
+      const maxRadius = Math.max(matrixRadius + 40, minScreen * 0.42);
+      const radius = randomRange(matrixRadius, maxRadius);
+      const angle = randomRange(0, 360);
+
+      word.style.setProperty("--r", Math.round(radius));
+      word.style.setProperty("--a", `${angle.toFixed(1)}deg`);
+      word.style.setProperty("--d", randomRange(14, 22).toFixed(1));
+    };
     words.forEach((word, i) => {
       const updateColor = () => {
         const c = nonGreenColor();
         word.style.setProperty("--c", c);
       };
       updateColor();
+      randomizeWordPosition(word);
       setInterval(updateColor, 2000 + i * 300);
     });
 
@@ -350,9 +368,13 @@
       const scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x0b1020, 0.0025);
       const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1400);
-      camera.position.z = 220;
-      camera.position.y = 6;
-    const fixedCameraPosition = new THREE.Vector3(0, 6, 220);
+      const cameraTarget = new THREE.Vector3(0, 75, -60);
+      const orbitRadius = 560;
+      const orbitHeight = 260;
+      const orbitSpeed = 0.06;
+      const fixedCameraPosition = new THREE.Vector3(orbitRadius, orbitHeight, -80);
+      const minCameraHeight = 120;
+      const minOrbitDistance = 520;
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -426,6 +448,7 @@
       countdownInterval = null;
       clearTimeout(scheduleTimeout);
       if (activeWord) {
+        randomizeWordPosition(activeWord);
         activeWord.style.visibility = "visible";
         activeWord = null;
       }
@@ -915,6 +938,287 @@
     const floorQuat = new THREE.Quaternion();
     const floorClearance = 8;
 
+    const jungleGroup = new THREE.Group();
+    jungleGroup.position.y = -40;
+    scene.add(jungleGroup);
+
+    const jungleStemPalette = [0x1c6a2f, 0x2f7d32, 0x3a8c3e, 0x2a6b2a];
+    const junglePetalPalette = [
+      0xff2d7a, // magenta-pink
+      0xff4c4c, // poppy red
+      0xffb347, // warm orange
+      0xffd84a, // bright yellow
+      0xff6fae, // soft pink
+      0xff7f2a, // orange-red
+      0xffe27a, // pale yellow
+      0xff3f6f  // deep pink
+    ];
+
+    const buildPetalGeometry = (width, height, curl, bowl) => {
+      const geometry = new THREE.PlaneGeometry(width, height, 16, 10);
+      geometry.translate(0, height * 0.42, 0);
+      const pos = geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const yNorm = (y + height * 0.5) / height;
+        const xNorm = x / (width * 0.5);
+        const wave = Math.sin(yNorm * Math.PI) * bowl;
+        const edgeCurl = Math.pow(Math.abs(xNorm), 1.6) * curl;
+        pos.setZ(i, wave + edgeCurl);
+        pos.setX(i, x * (1 - yNorm * 0.3));
+      }
+      geometry.computeVertexNormals();
+      return geometry;
+    };
+
+    const makeJungleFlower = () => {
+      const plant = new THREE.Group();
+      const stemHeight = randomRange(28, 70);
+      const stemRadius = randomRange(1.0, 2.6);
+      const stemColor = jungleStemPalette[Math.floor(Math.random() * jungleStemPalette.length)];
+      const stemMaterial = new THREE.MeshStandardMaterial({
+        color: stemColor,
+        roughness: 0.6,
+        metalness: 0.1,
+        emissive: 0x123814,
+        emissiveIntensity: 0.2
+      });
+      const stemCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(randomRange(-2, 2), stemHeight * 0.35, randomRange(-1, 1)),
+        new THREE.Vector3(randomRange(-1, 1), stemHeight * 0.65, randomRange(-1, 1)),
+        new THREE.Vector3(randomRange(-1.5, 1.5), stemHeight, randomRange(-1, 1))
+      ]);
+      const stem = new THREE.Mesh(
+        new THREE.TubeGeometry(stemCurve, 60, stemRadius, 10, false),
+        stemMaterial
+      );
+      plant.add(stem);
+
+      const petalWidth = randomRange(5.2, 9.8);
+      const petalHeight = randomRange(7.4, 13.8);
+      const petalGeometry = buildPetalGeometry(petalWidth, petalHeight, randomRange(0.2, 0.5), randomRange(0.25, 0.55));
+      const petalCount = Math.floor(randomRange(9, 14));
+      const innerPetalCount = Math.floor(randomRange(5, 8));
+      const bloom = new THREE.Group();
+      bloom.position.y = stemHeight * 0.6 + randomRange(1.5, 4.5);
+      plant.add(bloom);
+
+      for (let i = 0; i < petalCount; i++) {
+        const color = junglePetalPalette[Math.floor(Math.random() * junglePetalPalette.length)];
+        const petalMaterial = new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.4,
+          metalness: 0.1,
+          emissive: color,
+          emissiveIntensity: 0.15,
+          side: THREE.DoubleSide
+        });
+        const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+        petal.rotation.y = (i / petalCount) * Math.PI * 2;
+        petal.rotation.x = -randomRange(0.55, 1.0);
+        petal.rotation.z = randomRange(-0.25, 0.25);
+        petal.position.y = randomRange(-0.2, 0.3);
+        bloom.add(petal);
+      }
+
+      for (let i = 0; i < innerPetalCount; i++) {
+        const color = junglePetalPalette[Math.floor(Math.random() * junglePetalPalette.length)];
+        const petalMaterial = new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.3,
+          metalness: 0.1,
+          emissive: color,
+          emissiveIntensity: 0.25,
+          side: THREE.DoubleSide
+        });
+        const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+        petal.rotation.y = (i / innerPetalCount) * Math.PI * 2 + 0.3;
+        petal.rotation.x = -randomRange(0.2, 0.45);
+        petal.rotation.z = randomRange(-0.18, 0.18);
+        petal.position.y = randomRange(0.1, 0.45);
+        petal.scale.setScalar(0.65);
+        bloom.add(petal);
+      }
+
+      const core = new THREE.Mesh(
+        new THREE.SphereGeometry(randomRange(0.8, 1.6), 16, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0xfff5b8,
+          emissive: 0xfff1a6,
+          emissiveIntensity: 0.45,
+          roughness: 0.35
+        })
+      );
+      core.position.y = randomRange(0.2, 0.5);
+      bloom.add(core);
+
+      const addSideBloom = (height, scale, colorBias) => {
+        const sideBloom = new THREE.Group();
+        sideBloom.position.y = height;
+        sideBloom.position.x = randomRange(-1.8, 1.8);
+        sideBloom.position.z = randomRange(-1.2, 1.2);
+        sideBloom.rotation.y = randomRange(0, Math.PI * 2);
+        sideBloom.scale.setScalar(scale);
+        plant.add(sideBloom);
+
+        const sidePetalCount = Math.floor(randomRange(6, 10));
+        for (let i = 0; i < sidePetalCount; i++) {
+          const color = junglePetalPalette[(colorBias + i) % junglePetalPalette.length];
+          const petalMaterial = new THREE.MeshStandardMaterial({
+            color,
+            roughness: 0.4,
+            metalness: 0.1,
+            emissive: color,
+            emissiveIntensity: 0.2,
+            side: THREE.DoubleSide
+          });
+          const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+          petal.rotation.y = (i / sidePetalCount) * Math.PI * 2;
+          petal.rotation.x = -randomRange(0.6, 1.05);
+          petal.rotation.z = randomRange(-0.22, 0.22);
+          petal.position.y = randomRange(-0.2, 0.2);
+        petal.scale.setScalar(0.7);
+          sideBloom.add(petal);
+        }
+
+        const sideCore = new THREE.Mesh(
+          new THREE.SphereGeometry(0.5, 12, 12),
+          new THREE.MeshStandardMaterial({
+            color: 0xfff1b3,
+            emissive: 0xffe78f,
+            emissiveIntensity: 0.4,
+            roughness: 0.35
+          })
+        );
+        sideCore.position.y = 0.2;
+        sideBloom.add(sideCore);
+      };
+
+      const sideBloomCount = Math.floor(randomRange(3, 5));
+      for (let i = 0; i < sideBloomCount; i++) {
+        addSideBloom(
+          randomRange(stemHeight * 0.25, stemHeight * 0.75),
+          randomRange(0.5, 0.75),
+          Math.floor(randomRange(0, junglePetalPalette.length))
+        );
+      }
+
+      const beadGeometry = new THREE.SphereGeometry(0.18, 10, 10);
+      for (let i = 0; i < 10; i++) {
+        const bead = new THREE.Mesh(
+          beadGeometry,
+          new THREE.MeshStandardMaterial({
+            color: 0xffa6c8,
+            emissive: 0xff9dd3,
+            emissiveIntensity: 0.5,
+            roughness: 0.3
+          })
+        );
+        const angle = (i / 10) * Math.PI * 2;
+        bead.position.set(Math.cos(angle) * 0.9, randomRange(0.6, 1.6), Math.sin(angle) * 0.9);
+        bloom.add(bead);
+      }
+
+      return plant;
+    };
+
+    for (let i = 0; i < 32; i++) {
+      const plant = makeJungleFlower();
+      plant.position.set(
+        randomRange(-220, 220),
+        0,
+        randomRange(-240, 120)
+      );
+      plant.rotation.y = randomRange(0, Math.PI * 2);
+      plant.scale.setScalar(randomRange(1.1, 1.8));
+      jungleGroup.add(plant);
+    }
+
+    const buildBluebell = () => {
+      const plant = new THREE.Group();
+      const stemHeight = randomRange(26, 48);
+      const stemRadius = randomRange(0.32, 0.55);
+      const stemMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2b6a3a,
+        roughness: 0.6,
+        metalness: 0.05
+      });
+      const stemCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(randomRange(-0.2, 0.2), stemHeight * 0.35, randomRange(-0.15, 0.15)),
+        new THREE.Vector3(randomRange(0.2, 0.6), stemHeight * 0.7, randomRange(-0.2, 0.2)),
+        new THREE.Vector3(randomRange(0.6, 1.2), stemHeight * 0.85, randomRange(-0.3, 0.3)),
+        new THREE.Vector3(randomRange(1.0, 1.6), stemHeight * 0.72, randomRange(-0.4, 0.4))
+      ]);
+      const stem = new THREE.Mesh(
+        new THREE.TubeGeometry(stemCurve, 60, stemRadius, 8, false),
+        stemMaterial
+      );
+      plant.add(stem);
+
+      const bellMaterial = new THREE.MeshStandardMaterial({
+        color: 0x6a2dff,
+        roughness: 0.32,
+        metalness: 0.12,
+        emissive: 0x5520ff,
+        emissiveIntensity: 0.45
+      });
+      const bellProfile = [
+        new THREE.Vector2(0.0, 0.0),
+        new THREE.Vector2(0.08, 0.08),
+        new THREE.Vector2(0.16, 0.28),
+        new THREE.Vector2(0.22, 0.55),
+        new THREE.Vector2(0.18, 0.8),
+        new THREE.Vector2(0.26, 1.0),
+        new THREE.Vector2(0.34, 1.12),
+        new THREE.Vector2(0.42, 1.18)
+      ];
+      const bellGeometry = new THREE.LatheGeometry(bellProfile, 28);
+      const bellRimGeometry = new THREE.TorusGeometry(0.42, 0.05, 10, 40);
+
+      const bellCount = Math.floor(randomRange(10, 14));
+      for (let i = 0; i < bellCount; i++) {
+        const t = 0.35 + i / (bellCount + 1) * 0.6;
+        const point = stemCurve.getPointAt(t);
+        const tangent = stemCurve.getTangentAt(t).normalize();
+        const bellGroup = new THREE.Group();
+        bellGroup.position.copy(point);
+        bellGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+        bellGroup.rotateX(Math.PI * 0.9);
+        bellGroup.rotateZ(randomRange(-0.2, 0.2));
+
+        const bell = new THREE.Mesh(bellGeometry, bellMaterial);
+        bell.scale.set(randomRange(1.1, 1.35), randomRange(1.25, 1.6), randomRange(1.1, 1.35));
+        bell.rotation.x = Math.PI;
+        bell.position.y = -0.65;
+        bellGroup.add(bell);
+
+        const rim = new THREE.Mesh(bellRimGeometry, bellMaterial);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = -1.02;
+        rim.scale.setScalar(0.92);
+        bellGroup.add(rim);
+
+        plant.add(bellGroup);
+      }
+
+      return plant;
+    };
+
+    for (let i = 0; i < 22; i++) {
+      const bluebell = buildBluebell();
+      bluebell.position.set(
+        randomRange(-200, 200),
+        0,
+        randomRange(-220, 100)
+      );
+      bluebell.rotation.y = randomRange(0, Math.PI * 2);
+      bluebell.scale.setScalar(randomRange(2.5, 3.4));
+      jungleGroup.add(bluebell);
+    }
+
     const resize = () => {
       const { innerWidth: w, innerHeight: h } = window;
       renderer.setSize(w, h, false);
@@ -970,13 +1274,25 @@
     }
     nearPos.needsUpdate = true;
 
-      scene.rotation.y += 0.0008;
-      scene.rotation.x += 0.0004;
-      grid.rotation.y = Math.sin(t * 0.2) * 0.08;
-      grid.material.opacity = 0.04 + Math.abs(Math.sin(t * 0.6)) * 0.03;
-      nearMaterial.color.setHSL((0.55 + Math.sin(t * 0.4) * 0.05) % 1, 0.8, 0.7);
+      scene.rotation.set(0, 0, 0);
+      grid.rotation.y = 0;
+      grid.material.opacity = 0.05;
+      nearMaterial.color.setHSL(0.55, 0.8, 0.7);
+
       camera.position.copy(fixedCameraPosition);
-      camera.lookAt(0, 0, 0);
+      if (camera.position.y < minCameraHeight) camera.position.y = minCameraHeight;
+      grid.getWorldQuaternion(floorQuat);
+      floorNormal.set(0, 0, 1).applyQuaternion(floorQuat).normalize();
+      if (floorNormal.y < 0) floorNormal.negate();
+      grid.getWorldPosition(floorPoint);
+      floorPlane.setFromNormalAndCoplanarPoint(floorNormal, floorPoint);
+      const distanceToFloor = floorPlane.distanceToPoint(camera.position);
+      if (distanceToFloor < floorClearance) {
+        camera.position.addScaledVector(floorNormal, floorClearance - distanceToFloor);
+      }
+      camera.lookAt(cameraTarget);
+
+      jungleGroup.rotation.y = t * orbitSpeed;
 
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
