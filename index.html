@@ -216,6 +216,25 @@
       backdrop-filter: blur(8px);
     }
 
+    .streak-banner {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.28), rgba(8, 12, 24, 0.75));
+      border: 1px solid rgba(155, 213, 255, 0.65);
+      color: #e6f3ff;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-shadow: 0 0 10px rgba(155, 213, 255, 0.7);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3), inset 0 0 12px rgba(155, 213, 255, 0.35);
+      z-index: 7;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+
     .matrix-hint {
       color: #9bd5ff;
       font-size: 0.9rem;
@@ -293,6 +312,7 @@
       Download Skybammy App On Appl Store for more Fun Games: https://apps.apple.com/dk/app/skybammy/id6755389661
     </a>
   </div>
+  <div class="streak-banner">Streak <span id="streakValue">Zero</span></div>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
   <audio id="bgAudio" src="The%20World.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
@@ -333,17 +353,48 @@
     ];
 
     const scoreValue = document.getElementById("scoreValue");
+    const streakValue = document.getElementById("streakValue");
     const bgAudio = document.getElementById("bgAudio");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const playlist = ["The%20World.mp3", "lifted%20my%20spirit.mp3"];
     let playlistIndex = Math.floor(Math.random() * playlist.length);
     let playlistReady = false;
     let score = 0;
+    let streak = 0;
+    const streakWords = [
+      "Zero",
+      "One",
+      "Two",
+      "Three",
+      "Four",
+      "Five",
+      "Six",
+      "Seven",
+      "Eight",
+      "Nine",
+      "Ten",
+      "Eleven",
+      "Twelve",
+      "Thirteen",
+      "Fourteen",
+      "Fifteen",
+      "Sixteen",
+      "Seventeen",
+      "Eighteen",
+      "Nineteen",
+      "Twenty"
+    ];
     const setScore = (val) => {
       score = Math.max(0, val);
       scoreValue.textContent = score;
     };
     setScore(score);
+    const setStreak = (val) => {
+      streak = Math.max(0, val);
+      if (!streakValue) return;
+      streakValue.textContent = streakWords[streak] || `${streak}`;
+    };
+    setStreak(streak);
 
     // Try to auto-start the looping track; if blocked, start on first user interaction.
     const playTrack = (index) => {
@@ -375,13 +426,12 @@
       });
     }
     startAudio();
-    window.addEventListener(
-      "click",
-      () => {
-        startAudio();
-      },
-      { once: true }
-    );
+    const kickAudio = () => {
+      startAudio();
+    };
+    ["pointerdown", "touchstart", "keydown", "click"].forEach((evt) => {
+      window.addEventListener(evt, kickAudio, { once: true });
+    });
 
     const randomRange = (min, max) => min + Math.random() * (max - min);
 
@@ -577,6 +627,7 @@
       updateTimer();
       if (timeLeft <= 0) {
         challengeStatus.textContent = "Time's up. The word reappears.";
+        setStreak(0);
         endChallenge("");
       }
     };
@@ -606,9 +657,11 @@
       if (guess === target) {
         challengeStatus.textContent = "Correct!";
         setScore(score + 10);
+        setStreak(streak + 1);
         endChallenge("You got it right.");
       } else {
         setScore(score - 10);
+        setStreak(0);
         challengeStatus.textContent = "Try again.";
       }
     };
