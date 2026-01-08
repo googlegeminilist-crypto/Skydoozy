@@ -376,17 +376,17 @@
       width: min(360px, 88vw);
       padding: 14px 16px 18px;
       border-radius: 16px;
-      background: rgba(10, 16, 28, 0.12);
-      border: 0.5px solid rgba(155, 213, 255, 0.12);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
-      color: rgba(215, 236, 255, 0.68);
+      background: rgba(10, 16, 28, 0.06);
+      border: 0.5px solid rgba(155, 213, 255, 0.08);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      color: rgba(215, 236, 255, 0.6);
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       font-weight: 400;
       pointer-events: auto;
       max-height: 55vh;
       overflow: auto;
-      -webkit-backdrop-filter: blur(1px);
-      backdrop-filter: blur(1px);
+      -webkit-backdrop-filter: blur(2px);
+      backdrop-filter: blur(2px);
     }
 
     .blog-panel h2 {
@@ -404,8 +404,8 @@
     .story-panel p {
       margin: 0 0 12px;
       line-height: 1.6;
-      color: rgba(215, 236, 255, 0.62);
-      text-shadow: 0 0 8px rgba(10, 16, 28, 0.35);
+      color: rgba(215, 236, 255, 0.55);
+      text-shadow: 0 0 6px rgba(10, 16, 28, 0.25);
       font-weight: 300;
     }
 
@@ -1397,9 +1397,9 @@
     const symbolKindsViolet = ["rune", "lissajous", "spiral", "rosette"];
     const symbolCenter = new THREE.Vector3();
     const violetCenter = new THREE.Vector3();
-    const symbolLeftOffset = 260;
-    const violetLeftOffset = 380;
-    const symbolUpOffset = 10;
+    const symbolLeftOffset = -140;
+    const violetLeftOffset = 140;
+    const symbolUpOffset = -160;
     const symbolForwardOffset = 20;
     const symbolScale = 110;
     const violetSymbolScale = 105;
