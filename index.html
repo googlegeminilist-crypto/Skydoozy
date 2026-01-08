@@ -235,6 +235,28 @@
       pointer-events: none;
     }
 
+    .corner-video {
+      position: fixed;
+      top: 92px;
+      left: 18px;
+      width: min(280px, 46vw);
+      display: block;
+      border-radius: 12px;
+      border: 1px solid rgba(155, 213, 255, 0.4);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+      z-index: 6;
+      background: rgba(6, 10, 18, 0.6);
+      opacity: 1;
+      transform: scale(1);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .corner-video.is-hidden {
+      opacity: 0;
+      transform: scale(0.92);
+      pointer-events: none;
+    }
+
     .matrix-hint {
       color: #9bd5ff;
       font-size: 0.9rem;
@@ -362,6 +384,7 @@
     </a>
   </div>
   <div class="streak-banner">Streak <span id="streakValue">Zero</span></div>
+  <video class="corner-video is-hidden" src="Firefly%20a%20fox%20spelling%20the%20word%20tennis%20167515.mp4" autoplay muted playsinline hidden></video>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
   <audio id="bgAudio" src="The%20World.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
@@ -409,6 +432,7 @@
 
     const scoreValue = document.getElementById("scoreValue");
     const streakValue = document.getElementById("streakValue");
+    const cornerVideo = document.querySelector(".corner-video");
     const bgAudio = document.getElementById("bgAudio");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const playlist = ["The%20World.mp3", "lifted%20my%20spirit.mp3"];
@@ -656,6 +680,32 @@
     let countdownInterval = null;
     let scheduleTimeout = null;
     let timeLeft = 0;
+    let cornerVideoTimeout = null;
+
+    const hideCornerVideo = () => {
+      if (!cornerVideo) return;
+      cornerVideo.pause();
+      cornerVideo.hidden = true;
+      cornerVideo.style.visibility = "hidden";
+      cornerVideo.classList.add("is-hidden");
+    };
+
+    const showCornerVideo = () => {
+      if (!cornerVideo) return;
+      cornerVideo.hidden = false;
+      cornerVideo.style.visibility = "visible";
+      cornerVideo.classList.remove("is-hidden");
+      cornerVideo.currentTime = 0;
+      cornerVideo.play().catch(() => {
+        // Video playback may be blocked; keep it visible anyway.
+      });
+      clearTimeout(cornerVideoTimeout);
+      cornerVideoTimeout = setTimeout(hideCornerVideo, 8000);
+    };
+
+    if (cornerVideo) {
+      cornerVideo.addEventListener("ended", hideCornerVideo);
+    }
 
     const updateTimer = () => {
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
@@ -713,6 +763,9 @@
         challengeStatus.textContent = "Correct!";
         setScore(score + 10);
         setStreak(streak + 1);
+        if (target === "tennis") {
+          showCornerVideo();
+        }
         endChallenge("You got it right.");
       } else {
         setScore(score - 10);
