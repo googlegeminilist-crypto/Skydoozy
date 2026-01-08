@@ -376,14 +376,17 @@
       width: min(360px, 88vw);
       padding: 14px 16px 18px;
       border-radius: 16px;
-      background: rgba(10, 16, 28, 0.78);
-      border: 1px solid rgba(155, 213, 255, 0.4);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-      color: #d7ecff;
+      background: rgba(10, 16, 28, 0.12);
+      border: 0.5px solid rgba(155, 213, 255, 0.12);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+      color: rgba(215, 236, 255, 0.68);
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-weight: 400;
       pointer-events: auto;
       max-height: 55vh;
       overflow: auto;
+      -webkit-backdrop-filter: blur(1px);
+      backdrop-filter: blur(1px);
     }
 
     .blog-panel h2 {
@@ -401,6 +404,9 @@
     .story-panel p {
       margin: 0 0 12px;
       line-height: 1.6;
+      color: rgba(215, 236, 255, 0.62);
+      text-shadow: 0 0 8px rgba(10, 16, 28, 0.35);
+      font-weight: 300;
     }
 
     .blog-editor {
