@@ -386,6 +386,7 @@
   <div class="streak-banner">Streak <span id="streakValue">Zero</span></div>
   <video class="corner-video is-hidden tennis" src="Firefly%20a%20fox%20spelling%20the%20word%20tennis%20167515.mp4" autoplay muted playsinline hidden></video>
   <video class="corner-video is-hidden badmiton" src="Firefly%20with%20same%20capital%20letters%20and%20the%20same%20white%20fox%20but%20with%20a%20background%20volcano%2C%20can%20we%20make%20.mp4" autoplay muted playsinline hidden></video>
+  <video class="corner-video is-hidden basketball" src="Firefly%20a%20black%20grey%2C%20and%20white%20toy%20poodle%20with%20a%20black%20nose%20that%20spells%20Basketball%20inside%20a%20deep%20d.mp4" autoplay muted playsinline hidden></video>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
   <audio id="bgAudio" src="The%20World.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
@@ -435,6 +436,7 @@
     const streakValue = document.getElementById("streakValue");
     const cornerVideoTennis = document.querySelector(".corner-video.tennis");
     const cornerVideoBadmiton = document.querySelector(".corner-video.badmiton");
+    const cornerVideoBasketball = document.querySelector(".corner-video.basketball");
     const bgAudio = document.getElementById("bgAudio");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const playlist = ["The%20World.mp3", "lifted%20my%20spirit.mp3"];
@@ -715,7 +717,7 @@
       cornerVideoTimeout = setTimeout(() => hideCornerVideo(video), 8000);
     };
 
-    [cornerVideoTennis, cornerVideoBadmiton].forEach((video) => {
+    [cornerVideoTennis, cornerVideoBadmiton, cornerVideoBasketball].forEach((video) => {
       if (!video) return;
       video.addEventListener("ended", () => hideCornerVideo(video));
     });
@@ -781,6 +783,9 @@
         }
         if (target === "badmiton") {
           showCornerVideo(cornerVideoBadmiton);
+        }
+        if (target === "basketball") {
+          showCornerVideo(cornerVideoBasketball);
         }
         endChallenge("You got it right.");
       } else {
