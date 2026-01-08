@@ -1242,6 +1242,22 @@
     });
     const farPoints = new THREE.Points(farGeometry, farMaterial);
     scene.add(farPoints);
+    const farGlowMaterial = new THREE.PointsMaterial({
+      color: "#bfe6ff",
+      size: 3.6,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const farGlowPoints = new THREE.Points(farGeometry, farGlowMaterial);
+    scene.add(farGlowPoints);
+    let farHue = Math.random();
+    let nearHue = Math.random();
+    let farHueTarget = Math.random();
+    let nearHueTarget = Math.random();
+    let nextDriftHueShift = 0;
 
     // Near "pop-out" layer for stronger emergence toward the viewer
     const nearCount = 120;
@@ -1271,6 +1287,17 @@
     });
     const nearPoints = new THREE.Points(nearGeometry, nearMaterial);
     scene.add(nearPoints);
+    const nearGlowMaterial = new THREE.PointsMaterial({
+      color: "#dfffff",
+      size: 6.4,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.3,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const nearGlowPoints = new THREE.Points(nearGeometry, nearGlowMaterial);
+    scene.add(nearGlowPoints);
 
     // Hologram grid to anchor particles in room space
     const gridMaterial = new THREE.MeshBasicMaterial({
@@ -1721,7 +1748,17 @@
       scene.rotation.set(0, 0, 0);
       grid.rotation.y = 0;
       grid.material.opacity = 0.05;
-      nearMaterial.color.setHSL(0.55, 0.8, 0.7);
+      if (t > nextDriftHueShift) {
+        farHueTarget = Math.random();
+        nearHueTarget = Math.random();
+        nextDriftHueShift = t + 4 + Math.random() * 3;
+      }
+      farHue += (farHueTarget - farHue) * 0.02;
+      nearHue += (nearHueTarget - nearHue) * 0.02;
+      farMaterial.color.setHSL(farHue % 1, 0.75, 0.65);
+      nearMaterial.color.setHSL(nearHue % 1, 0.85, 0.7);
+      farGlowMaterial.color.setHSL(farHue % 1, 0.9, 0.82);
+      nearGlowMaterial.color.setHSL(nearHue % 1, 0.95, 0.85);
 
       camera.position.copy(fixedCameraPosition);
       if (camera.position.y < minCameraHeight) camera.position.y = minCameraHeight;
