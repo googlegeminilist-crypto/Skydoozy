@@ -257,6 +257,51 @@
       pointer-events: none;
     }
 
+    .corner-stack {
+      position: fixed;
+      top: 92px;
+      left: 18px;
+      width: min(280px, 46vw);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 6;
+      opacity: 1;
+      transform: scale(1);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      pointer-events: auto;
+    }
+
+    .corner-stack.is-hidden {
+      opacity: 0;
+      transform: scale(0.94);
+      pointer-events: none;
+    }
+
+    .corner-audio {
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(155, 213, 255, 0.4);
+      background: rgba(6, 10, 18, 0.6);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+    }
+
+    .corner-audio audio {
+      width: 100%;
+      display: block;
+    }
+
+    .corner-video.walk-out {
+      animation: corner-walk-out 1.2s ease-in forwards;
+    }
+
+    @keyframes corner-walk-out {
+      to {
+        opacity: 0;
+        transform: translate(120px, 30px) scale(0.9);
+      }
+    }
+
     .matrix-hint {
       color: #9bd5ff;
       font-size: 0.9rem;
@@ -348,6 +393,42 @@
       color: rgba(155, 213, 255, 0.7);
     }
 
+    .voice-spell-box {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(8, 36, 18, 0.75);
+      border: 1px solid rgba(102, 255, 153, 0.55);
+      box-shadow: inset 0 0 12px rgba(96, 255, 150, 0.25);
+    }
+
+    .voice-spell-box.is-hidden {
+      display: none;
+    }
+
+    .voice-spell-box p {
+      margin: 0 0 8px;
+      color: #b9ffd2;
+      font-size: 0.9rem;
+    }
+
+    .voice-spell-input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(192, 132, 255, 0.65);
+      background: rgba(16, 12, 28, 0.85);
+      color: #d9b6ff;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 8px rgba(192, 132, 255, 0.9);
+      box-shadow: 0 0 12px rgba(192, 132, 255, 0.35);
+      outline: none;
+    }
+
+    .voice-spell-input::placeholder {
+      color: rgba(192, 132, 255, 0.7);
+    }
+
     @keyframes drift {
       0% {
         transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateX(calc(var(--r, 220) * 1px)) rotate(calc(-1 * var(--a, 0deg)));
@@ -387,6 +468,15 @@
   <video class="corner-video is-hidden tennis" src="Firefly%20a%20fox%20spelling%20the%20word%20tennis%20167515.mp4" autoplay muted playsinline hidden></video>
   <video class="corner-video is-hidden badmiton" src="Firefly%20with%20same%20capital%20letters%20and%20the%20same%20white%20fox%20but%20with%20a%20background%20volcano%2C%20can%20we%20make%20.mp4" autoplay muted playsinline hidden></video>
   <video class="corner-video is-hidden basketball" src="Firefly%20a%20black%20grey%2C%20and%20white%20toy%20poodle%20with%20a%20black%20nose%20that%20spells%20Basketball%20inside%20a%20deep%20d.mp4" autoplay muted playsinline hidden></video>
+  <div class="corner-stack">
+    <div class="corner-audio" aria-label="Voice clip">
+      <audio id="voiceAudio" src="ElevenLabs_2026-01-08T03_23_12_Dylan_pvc_sp80_s49_sb47_v3.mp3" controls preload="metadata" data-cue="24"></audio>
+    </div>
+    <div class="voice-spell-box is-hidden">
+      <p>The word the voice asked to spell was the sport cricket, type the word here.</p>
+      <input id="voiceSpellInput" class="voice-spell-input" type="text" placeholder="Type here..." />
+    </div>
+  </div>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
   <audio id="bgAudio" src="The%20World.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
@@ -437,7 +527,11 @@
     const cornerVideoTennis = document.querySelector(".corner-video.tennis");
     const cornerVideoBadmiton = document.querySelector(".corner-video.badmiton");
     const cornerVideoBasketball = document.querySelector(".corner-video.basketball");
+    const cornerStack = document.querySelector(".corner-stack");
     const bgAudio = document.getElementById("bgAudio");
+    const voiceAudio = document.getElementById("voiceAudio");
+    const voiceSpellBox = document.querySelector(".voice-spell-box");
+    const voiceSpellInput = document.getElementById("voiceSpellInput");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const playlist = ["The%20World.mp3", "lifted%20my%20spirit.mp3"];
     let playlistIndex = Math.floor(Math.random() * playlist.length);
@@ -489,8 +583,37 @@
       });
     };
 
+    let resumeBgAfterVoice = false;
+    let voiceSpellShown = false;
+    const voiceCueTime = voiceAudio ? parseFloat(voiceAudio.dataset.cue || "2.5") : 0;
+
+    const showVoiceSpellBox = () => {
+      if (!voiceSpellBox || voiceSpellShown) return;
+      voiceSpellShown = true;
+      voiceSpellBox.classList.remove("is-hidden");
+    };
+
+    const checkVoiceCue = () => {
+      if (!voiceAudio || voiceSpellShown) return;
+      if (voiceAudio.currentTime >= voiceCueTime) {
+        showVoiceSpellBox();
+      }
+    };
+
+    const handleVoiceSpellSubmit = () => {
+      if (!voiceSpellInput || !voiceSpellBox || voiceSpellBox.classList.contains("is-hidden")) return;
+      const guess = voiceSpellInput.value.trim().toLowerCase();
+      if (!guess) return;
+      if (guess === "cricket") {
+        setScore(score + 20);
+        voiceSpellInput.value = "";
+        voiceSpellBox.classList.add("is-hidden");
+      }
+    };
+
     const startAudio = () => {
       if (!bgAudio) return;
+      if (voiceAudio && !voiceAudio.paused) return;
       bgAudio.volume = 0.6;
       bgAudio.loop = false;
       if (!playlistReady) {
@@ -506,6 +629,35 @@
       bgAudio.addEventListener("ended", () => {
         if (!playlistReady) return;
         playTrack(playlistIndex + 1);
+      });
+    }
+
+    if (voiceAudio) {
+      voiceAudio.addEventListener("play", () => {
+        resumeBgAfterVoice = !!(bgAudio && !bgAudio.paused);
+        if (bgAudio) bgAudio.pause();
+      });
+      voiceAudio.addEventListener("timeupdate", checkVoiceCue);
+      voiceAudio.addEventListener("seeked", checkVoiceCue);
+      voiceAudio.addEventListener("pause", () => {
+        if (!resumeBgAfterVoice) return;
+        resumeBgAfterVoice = false;
+        startAudio();
+      });
+      voiceAudio.addEventListener("ended", () => {
+        showVoiceSpellBox();
+        if (!resumeBgAfterVoice) return;
+        resumeBgAfterVoice = false;
+        startAudio();
+      });
+    }
+
+    if (voiceSpellInput) {
+      voiceSpellInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          handleVoiceSpellSubmit();
+        }
       });
     }
     startAudio();
@@ -687,6 +839,11 @@
     let cornerVideoTimeout = null;
     let activeCornerVideo = null;
 
+    const setCornerAudioVisible = (visible) => {
+      if (!cornerStack) return;
+      cornerStack.classList.toggle("is-hidden", !visible);
+    };
+
     const hideCornerVideo = (video) => {
       if (!video) return;
       video.pause();
@@ -697,6 +854,7 @@
         activeCornerVideo = null;
         clearTimeout(cornerVideoTimeout);
         cornerVideoTimeout = null;
+        setCornerAudioVisible(true);
       }
     };
 
@@ -705,10 +863,12 @@
       if (activeCornerVideo && activeCornerVideo !== video) {
         hideCornerVideo(activeCornerVideo);
       }
+      setCornerAudioVisible(false);
       activeCornerVideo = video;
       video.hidden = false;
       video.style.visibility = "visible";
       video.classList.remove("is-hidden");
+      video.classList.remove("walk-out");
       video.currentTime = 0;
       video.play().catch(() => {
         // Video playback may be blocked; keep it visible anyway.
@@ -721,6 +881,16 @@
       if (!video) return;
       video.addEventListener("ended", () => hideCornerVideo(video));
     });
+
+    if (cornerVideoBasketball) {
+      cornerVideoBasketball.addEventListener("timeupdate", () => {
+        if (!Number.isFinite(cornerVideoBasketball.duration)) return;
+        const remaining = cornerVideoBasketball.duration - cornerVideoBasketball.currentTime;
+        if (remaining <= 1.2 && !cornerVideoBasketball.classList.contains("walk-out")) {
+          cornerVideoBasketball.classList.add("walk-out");
+        }
+      });
+    }
 
     const updateTimer = () => {
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
