@@ -235,79 +235,6 @@
       pointer-events: none;
     }
 
-    .corner-video {
-      position: fixed;
-      top: 92px;
-      left: 18px;
-      width: min(280px, 46vw);
-      display: block;
-      border-radius: 12px;
-      border: 1px solid rgba(155, 213, 255, 0.4);
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
-      z-index: 6;
-      background: rgba(6, 10, 18, 0.6);
-      opacity: 1;
-      transform: scale(1);
-      transition: opacity 0.35s ease, transform 0.35s ease;
-    }
-
-    .corner-video.is-hidden {
-      opacity: 0;
-      transform: scale(0.92);
-      pointer-events: none;
-    }
-
-    .corner-stack {
-      position: fixed;
-      top: 92px;
-      left: 18px;
-      width: min(280px, 46vw);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      z-index: 6;
-      opacity: 1;
-      transform: scale(1);
-      transition: opacity 0.35s ease, transform 0.35s ease;
-      pointer-events: auto;
-    }
-
-    .corner-stack.is-hidden {
-      opacity: 0;
-      transform: scale(0.94);
-      pointer-events: none;
-    }
-
-    .corner-audio {
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(155, 213, 255, 0.4);
-      background: rgba(6, 10, 18, 0.6);
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
-    }
-
-    .corner-audio audio {
-      width: 100%;
-      display: block;
-    }
-
-    .corner-audio-note {
-      font-size: 0.78rem;
-      color: rgba(155, 213, 255, 0.85);
-      text-shadow: 0 0 6px rgba(77, 166, 255, 0.45);
-    }
-
-    .corner-video.walk-out {
-      animation: corner-walk-out 1.2s ease-in forwards;
-    }
-
-    @keyframes corner-walk-out {
-      to {
-        opacity: 0;
-        transform: translate(120px, 30px) scale(0.9);
-      }
-    }
-
     .matrix-hint {
       color: #9bd5ff;
       font-size: 0.9rem;
@@ -500,20 +427,8 @@
     </a>
   </div>
   <div class="streak-banner">Streak <span id="streakValue">Zero</span></div>
-  <video class="corner-video is-hidden tennis" src="Firefly%20a%20fox%20spelling%20the%20word%20tennis%20167515.mp4" autoplay muted playsinline hidden></video>
-  <video class="corner-video is-hidden badmiton" src="Firefly%20with%20same%20capital%20letters%20and%20the%20same%20white%20fox%20but%20with%20a%20background%20volcano%2C%20can%20we%20make%20.mp4" autoplay muted playsinline hidden></video>
-  <video class="corner-video is-hidden basketball" src="Firefly%20a%20black%20grey%2C%20and%20white%20toy%20poodle%20with%20a%20black%20nose%20that%20spells%20Basketball%20inside%20a%20deep%20d.mp4" autoplay muted playsinline hidden></video>
-  <div class="corner-stack">
-    <div class="corner-audio" aria-label="Voice clip">
-      <audio id="voiceAudio" src="ElevenLabs_2026-01-08T03_23_12_Dylan_pvc_sp80_s49_sb47_v3.mp3" controls preload="metadata" data-cue="24"></audio>
-    </div>
-    <div id="voiceAudioNote" class="corner-audio-note">Voice clip available once per day.</div>
-    <div class="voice-spell-box is-hidden">
-      <p>The word the voice asked to spell was the sport cricket, type the word here.</p>
-      <input id="voiceSpellInput" class="voice-spell-input" type="text" placeholder="Type here..." />
-    </div>
-  </div>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
+  <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <div class="title-stack">
@@ -555,9 +470,9 @@
   </section>
   <section class="blog-panel">
     <h2>Skydoozy Blog</h2>
-    <p>Learning to spell is good for your brain.It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because It's all you think about when you do It, so all your other thoughts fade away.</p>
-    <p>I've designed this webpage to give you a colorful experience while you are learning to spell. I'll keep updating and improving It as much as possible.</p>
-    <p>If you like this webpage, try my app Skybammy on the Apple Store. Currently, it requires iOS 17 or higher. Most importantly, I hope you have fun on Skydoozy!</p>
+    <p>Training your memory is very good for your brain. It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because it's all you think about when you do it, so all your other thoughts fade away.</p>
+    <p>I've designed this webpage to give you a colorful experience while your devloping this skill. I'll keep updating and improving it as much as possible.</p>
+    <p>If you like this webpage, try my app Skybammy on the App Store. Currently, it requires iOS 17 or higher. Most importantly, I hope you have fun on Skydosy!</p>
   </section>
   <script src="three.min.js"></script>
   <script>
@@ -573,15 +488,8 @@
 
     const scoreValue = document.getElementById("scoreValue");
     const streakValue = document.getElementById("streakValue");
-    const cornerVideoTennis = document.querySelector(".corner-video.tennis");
-    const cornerVideoBadmiton = document.querySelector(".corner-video.badmiton");
-    const cornerVideoBasketball = document.querySelector(".corner-video.basketball");
-    const cornerStack = document.querySelector(".corner-stack");
-    const voiceAudio = document.getElementById("voiceAudio");
-    const voiceSpellBox = document.querySelector(".voice-spell-box");
-    const voiceSpellInput = document.getElementById("voiceSpellInput");
-    const voiceAudioNote = document.getElementById("voiceAudioNote");
     const cursorCanvas = document.getElementById("cursor-canvas");
+    const bgAudio = document.getElementById("bgAudio");
     let score = 0;
     let streak = 0;
     const streakWords = [
@@ -619,91 +527,20 @@
     };
     setStreak(streak);
 
-    let voiceSpellShown = false;
-    const voiceCueTime = voiceAudio ? parseFloat(voiceAudio.dataset.cue || "2.5") : 0;
-    const voicePlayKey = "skydoozyVoiceAudioLastPlayed";
-
-    const getTodayKey = () => {
-      const now = new Date();
-      const month = `${now.getMonth() + 1}`.padStart(2, "0");
-      const day = `${now.getDate()}`.padStart(2, "0");
-      return `${now.getFullYear()}-${month}-${day}`;
-    };
-
-    const hasPlayedVoiceToday = () => {
-      try {
-        return localStorage.getItem(voicePlayKey) === getTodayKey();
-      } catch (err) {
-        return false;
-      }
-    };
-
-    const markVoicePlayedToday = () => {
-      try {
-        localStorage.setItem(voicePlayKey, getTodayKey());
-      } catch (err) {
-        // Ignore storage failures; treat as untracked.
-      }
-    };
-
-    const updateVoiceAudioNote = () => {
-      if (!voiceAudioNote) return;
-      voiceAudioNote.textContent = hasPlayedVoiceToday()
-        ? "Voice clip already played today. Try again tomorrow."
-        : "Voice clip available once per day.";
-    };
-
-    const showVoiceSpellBox = () => {
-      if (!voiceSpellBox || voiceSpellShown) return;
-      voiceSpellShown = true;
-      voiceSpellBox.classList.remove("is-hidden");
-    };
-
-    const checkVoiceCue = () => {
-      if (!voiceAudio || voiceSpellShown) return;
-      if (voiceAudio.currentTime >= voiceCueTime) {
-        showVoiceSpellBox();
-      }
-    };
-
-    const handleVoiceSpellSubmit = () => {
-      if (!voiceSpellInput || !voiceSpellBox || voiceSpellBox.classList.contains("is-hidden")) return;
-      const guess = voiceSpellInput.value.trim().toLowerCase();
-      if (!guess) return;
-      if (guess === "cricket") {
-        setScore(score + 20);
-        voiceSpellInput.value = "";
-        voiceSpellBox.classList.add("is-hidden");
-      }
-    };
-
-    if (voiceAudio) {
-      voiceAudio.addEventListener("play", () => {
-        if (hasPlayedVoiceToday()) {
-          voiceAudio.pause();
-          voiceAudio.currentTime = 0;
-          updateVoiceAudioNote();
-          return;
-        }
-        markVoicePlayedToday();
-        updateVoiceAudioNote();
+    const startBgAudio = () => {
+      if (!bgAudio) return;
+      if (!bgAudio.paused) return;
+      bgAudio.volume = 0.65;
+      bgAudio.play().catch(() => {
+        // Browser blocked autoplay; will retry on user interaction.
       });
-      voiceAudio.addEventListener("timeupdate", checkVoiceCue);
-      voiceAudio.addEventListener("seeked", checkVoiceCue);
-      voiceAudio.addEventListener("ended", () => {
-        showVoiceSpellBox();
-      });
-      updateVoiceAudioNote();
-    }
+    };
 
-    if (voiceSpellInput) {
-      voiceSpellInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          handleVoiceSpellSubmit();
-        }
-      });
-    }
+    startBgAudio();
+    ["pointerdown", "touchstart", "keydown", "click"].forEach((evt) => {
+      window.addEventListener(evt, startBgAudio, { once: true });
+    });
+
     const randomRange = (min, max) => min + Math.random() * (max - min);
 
     const nonGreenColor = () => {
@@ -872,62 +709,6 @@
     let countdownInterval = null;
     let scheduleTimeout = null;
     let timeLeft = 0;
-    let cornerVideoTimeout = null;
-    let activeCornerVideo = null;
-
-    const setCornerAudioVisible = (visible) => {
-      if (!cornerStack) return;
-      cornerStack.classList.toggle("is-hidden", !visible);
-    };
-
-    const hideCornerVideo = (video) => {
-      if (!video) return;
-      video.pause();
-      video.hidden = true;
-      video.style.visibility = "hidden";
-      video.classList.add("is-hidden");
-      if (activeCornerVideo === video) {
-        activeCornerVideo = null;
-        clearTimeout(cornerVideoTimeout);
-        cornerVideoTimeout = null;
-        setCornerAudioVisible(true);
-      }
-    };
-
-    const showCornerVideo = (video) => {
-      if (!video) return;
-      if (activeCornerVideo && activeCornerVideo !== video) {
-        hideCornerVideo(activeCornerVideo);
-      }
-      setCornerAudioVisible(false);
-      activeCornerVideo = video;
-      video.hidden = false;
-      video.style.visibility = "visible";
-      video.classList.remove("is-hidden");
-      video.classList.remove("walk-out");
-      video.currentTime = 0;
-      video.play().catch(() => {
-        // Video playback may be blocked; keep it visible anyway.
-      });
-      clearTimeout(cornerVideoTimeout);
-      cornerVideoTimeout = setTimeout(() => hideCornerVideo(video), 8000);
-    };
-
-    [cornerVideoTennis, cornerVideoBadmiton, cornerVideoBasketball].forEach((video) => {
-      if (!video) return;
-      video.addEventListener("ended", () => hideCornerVideo(video));
-    });
-
-    if (cornerVideoBasketball) {
-      cornerVideoBasketball.addEventListener("timeupdate", () => {
-        if (!Number.isFinite(cornerVideoBasketball.duration)) return;
-        const remaining = cornerVideoBasketball.duration - cornerVideoBasketball.currentTime;
-        if (remaining <= 1.2 && !cornerVideoBasketball.classList.contains("walk-out")) {
-          cornerVideoBasketball.classList.add("walk-out");
-        }
-      });
-    }
-
     const updateTimer = () => {
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
     };
@@ -984,15 +765,6 @@
         challengeStatus.textContent = "Correct!";
         setScore(score + 10);
         setStreak(streak + 1);
-        if (target === "tennis") {
-          showCornerVideo(cornerVideoTennis);
-        }
-        if (target === "badmiton") {
-          showCornerVideo(cornerVideoBadmiton);
-        }
-        if (target === "basketball") {
-          showCornerVideo(cornerVideoBasketball);
-        }
         endChallenge("You got it right.");
       } else {
         setScore(score - 10);
