@@ -1085,11 +1085,11 @@
       lightsGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
       lightsGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
       const lightsMaterial = new THREE.PointsMaterial({
-        size: 0.32,
+        size: 0.45,
         sizeAttenuation: true,
         vertexColors: true,
         transparent: true,
-        opacity: 0.95,
+        opacity: 0.98,
         blending: THREE.AdditiveBlending,
         depthTest: false,
         depthWrite: false
@@ -1124,11 +1124,11 @@
       sparkleGeometry.setAttribute("position", new THREE.BufferAttribute(sparklePositions, 3));
       sparkleGeometry.setAttribute("color", new THREE.BufferAttribute(sparkleColors, 3));
       const sparkleMaterial = new THREE.PointsMaterial({
-        size: 0.5,
+        size: 0.7,
         sizeAttenuation: true,
         vertexColors: true,
         transparent: true,
-        opacity: 0.98,
+        opacity: 1,
         blending: THREE.AdditiveBlending,
         depthTest: false,
         depthWrite: false
