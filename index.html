@@ -201,7 +201,7 @@
       position: fixed;
       top: 56px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       padding: 8px 16px;
       border-radius: 999px;
       background: rgba(9, 16, 28, 0.7);
@@ -492,6 +492,7 @@
 
     const scoreValue = document.getElementById("scoreValue");
     const streakValue = document.getElementById("streakValue");
+    const scoreBanner = document.querySelector(".score-banner");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const bgAudio = document.getElementById("bgAudio");
     let score = 0;
@@ -530,6 +531,16 @@
       streakValue.textContent = streakWords[streak] || `${streak}`;
     };
     setStreak(streak);
+
+    const updateScoreBanner = () => {
+      if (!scoreBanner || !matrixWindow) return;
+      const rect = matrixWindow.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = rect.left + rect.width * 0.5;
+      const y = Math.max(16, rect.top - 24);
+      scoreBanner.style.left = `${x}px`;
+      scoreBanner.style.top = `${y}px`;
+    };
 
     const startBgAudio = () => {
       if (!bgAudio) return;
@@ -659,6 +670,8 @@
     });
     layoutWordCloud();
     window.addEventListener("resize", layoutWordCloud);
+    window.addEventListener("resize", updateScoreBanner);
+    requestAnimationFrame(updateScoreBanner);
 
     let wordBag = [];
     let lastWord = null;
@@ -704,6 +717,177 @@
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+    scene.add(camera);
+    const rainbowColors = [
+      0xff4d4d,
+      0xffa64d,
+      0xfff15a,
+      0x6bff8a,
+      0x4dd9ff,
+      0x6f7bff,
+      0xb36bff
+    ];
+    const rainbowSettings = {
+      depth: 120,
+      yOffset: -8,
+      baseRadius: 1,
+      bandGap: 0.18,
+      tubeRadius: 0.05
+    };
+    const rainbowGroup = new THREE.Group();
+    const rainbowMeshes = [];
+    const rainbowLights = {
+      points: null,
+      material: null,
+      geometry: null,
+      sparklePoints: null,
+      sparkleMaterial: null,
+      sparkleGeometry: null,
+      sparkleColors: null,
+      sparklePhases: null
+    };
+    const buildRainbow = () => {
+      const outerRadius = rainbowSettings.baseRadius + rainbowSettings.bandGap * (rainbowColors.length - 1);
+      rainbowMeshes.forEach((mesh) => {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+        rainbowGroup.remove(mesh);
+      });
+      rainbowMeshes.length = 0;
+      if (rainbowLights.points) {
+        rainbowLights.geometry.dispose();
+        rainbowLights.material.dispose();
+        rainbowGroup.remove(rainbowLights.points);
+        rainbowLights.points = null;
+        rainbowLights.material = null;
+        rainbowLights.geometry = null;
+      }
+      if (rainbowLights.sparklePoints) {
+        rainbowLights.sparkleGeometry.dispose();
+        rainbowLights.sparkleMaterial.dispose();
+        rainbowGroup.remove(rainbowLights.sparklePoints);
+        rainbowLights.sparklePoints = null;
+        rainbowLights.sparkleMaterial = null;
+        rainbowLights.sparkleGeometry = null;
+        rainbowLights.sparkleColors = null;
+        rainbowLights.sparklePhases = null;
+      }
+      rainbowColors.forEach((color, i) => {
+        const radius = rainbowSettings.baseRadius + rainbowSettings.bandGap * i;
+        const geometry = new THREE.TorusGeometry(radius, rainbowSettings.tubeRadius, 12, 64, Math.PI);
+        const material = new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.85,
+          depthTest: false,
+          depthWrite: false
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        rainbowGroup.add(mesh);
+        rainbowMeshes.push(mesh);
+      });
+      const lightCount = 180;
+      const positions = new Float32Array(lightCount * 3);
+      const colors = new Float32Array(lightCount * 3);
+      const lightColor = new THREE.Color();
+      for (let i = 0; i < lightCount; i++) {
+        const t = (i / (lightCount - 1)) * Math.PI;
+        const band = i % rainbowColors.length;
+        const baseRadius = rainbowSettings.baseRadius + rainbowSettings.bandGap * band;
+        const radius = baseRadius + randomRange(-rainbowSettings.tubeRadius * 0.35, rainbowSettings.tubeRadius * 0.35);
+        const idx = i * 3;
+        positions[idx] = Math.cos(t) * radius;
+        positions[idx + 1] = Math.sin(t) * radius;
+        positions[idx + 2] = randomRange(-0.06, 0.06);
+        lightColor.setHex(rainbowColors[band]);
+        colors[idx] = lightColor.r;
+        colors[idx + 1] = lightColor.g;
+        colors[idx + 2] = lightColor.b;
+      }
+      const lightsGeometry = new THREE.BufferGeometry();
+      lightsGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      lightsGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const lightsMaterial = new THREE.PointsMaterial({
+        size: 0.32,
+        sizeAttenuation: true,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.95,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        depthWrite: false
+      });
+      const lightsPoints = new THREE.Points(lightsGeometry, lightsMaterial);
+      rainbowGroup.add(lightsPoints);
+      rainbowLights.points = lightsPoints;
+      rainbowLights.material = lightsMaterial;
+      rainbowLights.geometry = lightsGeometry;
+
+      const sparkleCount = 120;
+      const sparklePositions = new Float32Array(sparkleCount * 3);
+      const sparkleColors = new Float32Array(sparkleCount * 3);
+      const sparklePhases = new Float32Array(sparkleCount);
+      for (let i = 0; i < sparkleCount; i++) {
+        const t = Math.random() * Math.PI;
+        const band = Math.floor(Math.random() * rainbowColors.length);
+        const baseRadius = rainbowSettings.baseRadius + rainbowSettings.bandGap * band;
+        const radius = baseRadius + randomRange(-rainbowSettings.tubeRadius * 0.4, rainbowSettings.tubeRadius * 0.4);
+        const idx = i * 3;
+        sparklePositions[idx] = Math.cos(t) * radius;
+        sparklePositions[idx + 1] = Math.sin(t) * radius;
+        sparklePositions[idx + 2] = randomRange(-0.12, 0.12);
+        lightColor.setHex(rainbowColors[band]);
+        sparkleColors[idx] = lightColor.r;
+        sparkleColors[idx + 1] = lightColor.g;
+        sparkleColors[idx + 2] = lightColor.b;
+        sparklePhases[i] = Math.random() * Math.PI * 2;
+      }
+      const sparkleGeometry = new THREE.BufferGeometry();
+      sparkleGeometry.setAttribute("position", new THREE.BufferAttribute(sparklePositions, 3));
+      sparkleGeometry.setAttribute("color", new THREE.BufferAttribute(sparkleColors, 3));
+      const sparkleMaterial = new THREE.PointsMaterial({
+        size: 0.5,
+        sizeAttenuation: true,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.98,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        depthWrite: false
+      });
+      const sparklePoints = new THREE.Points(sparkleGeometry, sparkleMaterial);
+      rainbowGroup.add(sparklePoints);
+      rainbowLights.sparklePoints = sparklePoints;
+      rainbowLights.sparkleMaterial = sparkleMaterial;
+      rainbowLights.sparkleGeometry = sparkleGeometry;
+      rainbowLights.sparkleColors = sparkleColors;
+      rainbowLights.sparklePhases = sparklePhases;
+      rainbowGroup.userData.baseWidth = outerRadius * 2;
+    };
+    buildRainbow();
+    camera.add(rainbowGroup);
+
+    const updateRainbow = () => {
+      if (!matrixWindow) return;
+      const rect = matrixWindow.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const depth = rainbowSettings.depth;
+      const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * depth;
+      const halfWidth = halfHeight * camera.aspect;
+      const centerX = rect.left + rect.width * 0.5;
+      const topY = rect.top;
+      const ndcX = (centerX / window.innerWidth) * 2 - 1;
+      const ndcY = 1 - (topY / window.innerHeight) * 2;
+      rainbowGroup.position.set(
+        ndcX * halfWidth,
+        ndcY * halfHeight + rainbowSettings.yOffset,
+        -depth
+      );
+      const worldWidth = (rect.width / window.innerWidth) * 2 * halfWidth;
+      const scale = worldWidth / (rainbowGroup.userData.baseWidth || 1);
+      rainbowGroup.scale.setScalar(scale);
+    };
+
     // Matrix window
     const matrixCanvas = document.getElementById("matrix");
     const matrixCtx = matrixCanvas.getContext("2d");
@@ -723,6 +907,7 @@
       const columnWidth = 12;
       const columns = Math.floor(rect.width / columnWidth);
       matrixColumns = Array(columns).fill(0);
+      updateScoreBanner();
     };
 
     const drawMatrix = (ts = 0) => {
@@ -1852,10 +2037,27 @@
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      updateRainbow();
     };
 
     const animate = () => {
       const t = performance.now() * 0.001;
+      updateRainbow();
+      if (rainbowLights.material) {
+        rainbowLights.material.opacity = 0.7 + Math.sin(t * 2.4) * 0.3;
+      }
+      if (rainbowLights.sparkleMaterial && rainbowLights.sparkleGeometry && rainbowLights.sparkleColors) {
+        const sparkleAttr = rainbowLights.sparkleGeometry.getAttribute("color");
+        for (let i = 0; i < rainbowLights.sparklePhases.length; i++) {
+          const idx = i * 3;
+          const pulse = 0.55 + 0.45 * Math.sin(t * 3.2 + rainbowLights.sparklePhases[i]);
+          sparkleAttr.array[idx] = rainbowLights.sparkleColors[idx] * pulse;
+          sparkleAttr.array[idx + 1] = rainbowLights.sparkleColors[idx + 1] * pulse;
+          sparkleAttr.array[idx + 2] = rainbowLights.sparkleColors[idx + 2] * pulse;
+        }
+        sparkleAttr.needsUpdate = true;
+        rainbowLights.sparkleMaterial.opacity = 0.75 + Math.sin(t * 1.7) * 0.22;
+      }
       if (t > nextSymbolTime) {
         const kind = symbolKinds[symbolIndex % symbolKinds.length];
         const violetKind = symbolKindsViolet[symbolIndex % symbolKindsViolet.length];
