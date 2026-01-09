@@ -1753,6 +1753,31 @@
       });
     };
 
+    const randomFlowerColor = () => {
+      const color = new THREE.Color();
+      const hue = Math.random();
+      const saturation = 0.55 + Math.random() * 0.4;
+      const lightness = 0.4 + Math.random() * 0.4;
+      color.setHSL(hue, saturation, lightness);
+      return color;
+    };
+
+    const flowerColorShift = {
+      nextTime: 0,
+      minInterval: 2.5,
+      maxInterval: 6.5,
+      lerp: 0.018
+    };
+
+    const assignFlowerColorTargets = () => {
+      glowReactors.forEach((reactor) => {
+        reactor.materials.forEach((entry) => {
+          if (!entry.baseColor || !entry.baseEmissive) return;
+          entry.targetColor = randomFlowerColor();
+        });
+      });
+    };
+
     const jungleStemPalette = [0x1c6a2f, 0x2f7d32, 0x3a8c3e, 0x2a6b2a];
     const junglePetalPalette = [
       0xff2d7a, // magenta-pink
@@ -2032,6 +2057,9 @@
       registerGlowGroup(bluebell, 120, 1.0);
     }
 
+    assignFlowerColorTargets();
+    flowerColorShift.nextTime = randomRange(flowerColorShift.minInterval, flowerColorShift.maxInterval);
+
     const resize = () => {
       const { innerWidth: w, innerHeight: h } = window;
       renderer.setSize(w, h, false);
@@ -2183,6 +2211,18 @@
         orb.light.intensity = 1.2 + orbPulse * 1.4;
         orb.sprite.material.opacity = 0.45 + orbPulse * 0.4;
         orb.sprite.scale.setScalar(orb.params.size * (0.85 + orbPulse * 0.35));
+      });
+
+      if (t > flowerColorShift.nextTime) {
+        assignFlowerColorTargets();
+        flowerColorShift.nextTime = t + randomRange(flowerColorShift.minInterval, flowerColorShift.maxInterval);
+      }
+      glowReactors.forEach((reactor) => {
+        reactor.materials.forEach((entry) => {
+          if (!entry.targetColor || !entry.baseColor || !entry.baseEmissive) return;
+          entry.baseColor.lerp(entry.targetColor, flowerColorShift.lerp);
+          entry.baseEmissive.lerp(entry.targetColor, flowerColorShift.lerp * 0.85);
+        });
       });
 
       jungleGroup.updateWorldMatrix(true, true);
