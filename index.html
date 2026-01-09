@@ -520,7 +520,7 @@
     <h2>Skydoozy Blog</h2>
     <p>Training your memory is very good for your brain. It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because it's all you think about when you do it, so all your other thoughts fade away.</p>
     <p>I've designed this webpage to give you a colorful experience while your devloping this skill. I'll keep updating and improving it as much as possible.</p>
-    <p>If you like this webpage, try my app Skybammy on the App Store. Currently, it requires iOS 17 or higher. Most importantly, I hope you have fun on Skydosy!</p>
+    <p>If you like this webpage, try my app Skybammy on the App Store. Currently, it requires iOS 17 or higher. Most importantly, I hope you have fun on Skydoozy!</p>
   </section>
   <script src="three.min.js"></script>
   <script>
@@ -937,12 +937,78 @@
       points: null,
       material: null,
       geometry: null,
+      lightSize: null,
       sparklePoints: null,
       sparkleMaterial: null,
       sparkleGeometry: null,
       sparkleColors: null,
-      sparklePhases: null
+      sparklePhases: null,
+      sparkleSize: null,
+      starGroup: null,
+      starSprites: null,
+      starPhases: null,
+      starBaseScales: null,
+      starHueOffsets: null
     };
+    const starSettings = {
+      count: 32,
+      minScale: 0.09,
+      maxScale: 0.18,
+      zJitter: 0.08
+    };
+    const starTexture = (() => {
+      const size = 128;
+      const starCanvas = document.createElement("canvas");
+      starCanvas.width = size;
+      starCanvas.height = size;
+      const ctx = starCanvas.getContext("2d");
+      ctx.translate(size * 0.5, size * 0.5);
+      const outer = size * 0.44;
+      const inner = size * 0.18;
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, outer);
+      glow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      glow.addColorStop(0.45, "rgba(255, 255, 255, 0.45)");
+      glow.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 0, outer, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
+      ctx.shadowColor = "rgba(255, 255, 255, 0.8)";
+      ctx.shadowBlur = size * 0.08;
+      ctx.beginPath();
+      let rot = Math.PI / 2 * 3;
+      const step = Math.PI / 5;
+      ctx.moveTo(0, -outer);
+      for (let i = 0; i < 5; i++) {
+        ctx.lineTo(Math.cos(rot) * outer, Math.sin(rot) * outer);
+        rot += step;
+        ctx.lineTo(Math.cos(rot) * inner, Math.sin(rot) * inner);
+        rot += step;
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.lineWidth = size * 0.015;
+      ctx.beginPath();
+      ctx.moveTo(-outer * 0.55, 0);
+      ctx.lineTo(outer * 0.55, 0);
+      ctx.moveTo(0, -outer * 0.55);
+      ctx.lineTo(0, outer * 0.55);
+      ctx.stroke();
+
+      const texture = new THREE.CanvasTexture(starCanvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    })();
     const buildRainbow = () => {
       const outerRadius = rainbowSettings.baseRadius + rainbowSettings.bandGap * (rainbowColors.length - 1);
       rainbowMeshes.forEach((mesh) => {
@@ -958,6 +1024,7 @@
         rainbowLights.points = null;
         rainbowLights.material = null;
         rainbowLights.geometry = null;
+        rainbowLights.lightSize = null;
       }
       if (rainbowLights.sparklePoints) {
         rainbowLights.sparkleGeometry.dispose();
@@ -968,6 +1035,18 @@
         rainbowLights.sparkleGeometry = null;
         rainbowLights.sparkleColors = null;
         rainbowLights.sparklePhases = null;
+        rainbowLights.sparkleSize = null;
+      }
+      if (rainbowLights.starGroup) {
+        rainbowLights.starGroup.children.forEach((sprite) => {
+          if (sprite.material) sprite.material.dispose();
+        });
+        rainbowGroup.remove(rainbowLights.starGroup);
+        rainbowLights.starGroup = null;
+        rainbowLights.starSprites = null;
+        rainbowLights.starPhases = null;
+        rainbowLights.starBaseScales = null;
+        rainbowLights.starHueOffsets = null;
       }
       rainbowColors.forEach((color, i) => {
         const radius = rainbowSettings.baseRadius + rainbowSettings.bandGap * i;
@@ -1019,6 +1098,7 @@
       rainbowLights.points = lightsPoints;
       rainbowLights.material = lightsMaterial;
       rainbowLights.geometry = lightsGeometry;
+      rainbowLights.lightSize = lightsMaterial.size;
 
       const sparkleCount = 120;
       const sparklePositions = new Float32Array(sparkleCount * 3);
@@ -1059,6 +1139,68 @@
       rainbowLights.sparkleGeometry = sparkleGeometry;
       rainbowLights.sparkleColors = sparkleColors;
       rainbowLights.sparklePhases = sparklePhases;
+      rainbowLights.sparkleSize = sparkleMaterial.size;
+
+      const starGroup = new THREE.Group();
+      const starSprites = [];
+      const starPhases = [];
+      const starBaseScales = [];
+      const starHueOffsets = [];
+      const starColor = new THREE.Color();
+      const whiteStar = new THREE.Color(0xffffff);
+      const placedStars = [];
+      for (let i = 0; i < starSettings.count; i++) {
+        let placed = null;
+        let baseScale = null;
+        let band = null;
+        for (let attempt = 0; attempt < 80; attempt++) {
+          const t = randomRange(0.08, 0.92) * Math.PI;
+          band = Math.floor(randomRange(0, rainbowColors.length));
+          const baseRadius = rainbowSettings.baseRadius + rainbowSettings.bandGap * band;
+          const radius = baseRadius + randomRange(-rainbowSettings.tubeRadius * 0.4, rainbowSettings.tubeRadius * 0.4);
+          const pos = new THREE.Vector3(
+            Math.cos(t) * radius,
+            Math.sin(t) * radius,
+            randomRange(-starSettings.zJitter, starSettings.zJitter)
+          );
+          baseScale = randomRange(starSettings.minScale, starSettings.maxScale);
+          const minSpacing = (scaleA, scaleB) => (scaleA + scaleB) * 1.9;
+          const hasOverlap = placedStars.some((entry) => (
+            pos.distanceTo(entry.pos) < minSpacing(baseScale, entry.scale)
+          ));
+          if (!hasOverlap) {
+            placed = pos;
+            break;
+          }
+        }
+        if (!placed || baseScale === null || band === null) continue;
+        const spriteMaterial = new THREE.SpriteMaterial({
+          map: starTexture,
+          color: starColor.setHex(rainbowColors[band]).lerp(whiteStar, 0.35),
+          transparent: true,
+          opacity: 0.9,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false
+        });
+        spriteMaterial.rotation = randomRange(0, Math.PI * 2);
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.position.copy(placed);
+        sprite.scale.setScalar(baseScale);
+        starGroup.add(sprite);
+        placedStars.push({ pos: placed, scale: baseScale });
+        starSprites.push(sprite);
+        starPhases.push(Math.random() * Math.PI * 2);
+        starBaseScales.push(baseScale);
+        starHueOffsets.push(Math.random());
+      }
+      starGroup.renderOrder = 3;
+      rainbowGroup.add(starGroup);
+      rainbowLights.starGroup = starGroup;
+      rainbowLights.starSprites = starSprites;
+      rainbowLights.starPhases = starPhases;
+      rainbowLights.starBaseScales = starBaseScales;
+      rainbowLights.starHueOffsets = starHueOffsets;
       rainbowGroup.userData.baseWidth = outerRadius * 2;
     };
     buildRainbow();
@@ -2285,7 +2427,8 @@
       if (rainbowLights.material) {
         const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
         rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
-        rainbowLights.material.size = rainbowSettings.lightSize * (1 + flashBoost * 0.7);
+        const lightSize = rainbowLights.lightSize || 0.32;
+        rainbowLights.material.size = lightSize * (1 + flashBoost * 0.7);
       }
       if (rainbowLights.sparkleMaterial && rainbowLights.sparkleGeometry && rainbowLights.sparkleColors) {
         const sparkleAttr = rainbowLights.sparkleGeometry.getAttribute("color");
@@ -2300,7 +2443,23 @@
         sparkleAttr.needsUpdate = true;
         const sparkleBase = 0.75 + Math.sin(t * 1.7) * 0.22;
         rainbowLights.sparkleMaterial.opacity = Math.min(1, sparkleBase + flashBoost * 0.5);
-        rainbowLights.sparkleMaterial.size = rainbowSettings.sparkleSize * (1 + flashBoost * 0.9);
+        const sparkleSize = rainbowLights.sparkleSize || 0.5;
+        rainbowLights.sparkleMaterial.size = sparkleSize * (1 + flashBoost * 0.9);
+      }
+      if (rainbowLights.starSprites && rainbowLights.starPhases && rainbowLights.starBaseScales) {
+        rainbowLights.starSprites.forEach((sprite, i) => {
+          const twinkle = 0.55 + 0.45 * Math.sin(t * 3.6 + rainbowLights.starPhases[i]);
+          const shimmer = 0.65 + 0.35 * Math.sin(t * 7.2 + rainbowLights.starPhases[i] * 0.6);
+          const boost = 1 + flashBoost * 0.8;
+          sprite.material.opacity = Math.min(1, 0.55 + twinkle * 0.35 + shimmer * 0.25 + flashBoost * 0.25);
+          const scale = rainbowLights.starBaseScales[i] * (0.85 + twinkle * 0.35 + shimmer * 0.25) * boost;
+          sprite.scale.setScalar(scale);
+          if (rainbowLights.starHueOffsets) {
+            const hue = (t * 0.08 + rainbowLights.starHueOffsets[i]) % 1;
+            const lightness = 0.68 + shimmer * 0.2;
+            sprite.material.color.setHSL(hue, 0.9, lightness);
+          }
+        });
       }
       if (rainbowMeshes.length) {
         const arcBase = 0.85 + Math.sin(t * 1.8) * 0.08;
