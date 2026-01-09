@@ -893,9 +893,15 @@
     const matrixCtx = matrixCanvas.getContext("2d");
     const matrixChars = "アァカサタナハマヤャラワ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     let matrixColumns = [];
+    let matrixColors = [];
     let matrixHeight = 0;
     let lastMatrixTime = 0;
     const matrixInterval = 140; // slow down updates
+
+    const randomMatrixColor = () => {
+      const hue = Math.floor(Math.random() * 360);
+      return `hsl(${hue}, 80%, 65%)`;
+    };
 
     const resizeMatrix = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -907,6 +913,7 @@
       const columnWidth = 12;
       const columns = Math.floor(rect.width / columnWidth);
       matrixColumns = Array(columns).fill(0);
+      matrixColors = Array.from({ length: columns }, () => randomMatrixColor());
       updateScoreBanner();
     };
 
@@ -915,10 +922,13 @@
         matrixCtx.fillStyle = "rgba(7, 12, 18, 0.35)";
         matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
 
-        matrixCtx.fillStyle = "#7cff95";
         matrixCtx.font = "14px 'Courier New', monospace";
 
         matrixColumns.forEach((y, i) => {
+          if (y === 0 || !matrixColors[i]) {
+            matrixColors[i] = randomMatrixColor();
+          }
+          matrixCtx.fillStyle = matrixColors[i];
           const text = matrixChars[Math.floor(Math.random() * matrixChars.length)];
           const x = i * 12;
           matrixCtx.fillText(text, x, y);
