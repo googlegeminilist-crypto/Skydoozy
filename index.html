@@ -568,7 +568,7 @@
     const matrixWindow = document.querySelector(".matrix-window");
     const wordCloudPanel = wordCloud ? wordCloud.closest(".story-panel") : null;
     const orbitDuration = 22;
-    const wordSeparation = 50;
+    const wordSeparation = 60;
     const randomizeWordPosition = (word) => {
       if (!wordCloud) return;
       const cloudRect = wordCloud.getBoundingClientRect();
@@ -577,10 +577,13 @@
       const matrixRadius = matrixRect
         ? Math.hypot(matrixRect.width, matrixRect.height) * 0.5 + 60
         : wordCloudPanel ? 0 : 160;
+      const wordRect = word.getBoundingClientRect();
       const fontSize = parseFloat(getComputedStyle(word).fontSize) || 24;
-      const approxWidth = word.textContent.trim().length * fontSize * 0.6;
-      const approxHeight = fontSize * 1.1;
-      const wordRadius = Math.hypot(approxWidth, approxHeight) * 0.5 + 10;
+      const approxWidth = word.textContent.trim().length * fontSize * 0.7;
+      const approxHeight = fontSize * 1.25;
+      const wordWidth = wordRect.width || approxWidth;
+      const wordHeight = wordRect.height || approxHeight;
+      const wordRadius = Math.hypot(wordWidth, wordHeight) * 0.5 + 12;
       const safeRadius = Math.max(0, minScreen * 0.5 - wordRadius - 16);
       const minRadiusCandidate = Math.max(12, safeRadius * 0.25);
       const minRadius = wordCloudPanel ? Math.min(minRadiusCandidate, safeRadius) : matrixRadius;
@@ -672,6 +675,8 @@
     window.addEventListener("resize", layoutWordCloud);
     window.addEventListener("resize", updateScoreBanner);
     requestAnimationFrame(updateScoreBanner);
+    window.addEventListener("load", layoutWordCloud);
+    setTimeout(layoutWordCloud, 200);
 
     let wordBag = [];
     let lastWord = null;
