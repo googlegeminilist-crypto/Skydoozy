@@ -1709,7 +1709,7 @@
     const makeJungleFlower = () => {
       const plant = new THREE.Group();
       const stemHeight = randomRange(28, 70);
-      const stemRadius = randomRange(1.0, 2.6);
+      const stemRadius = randomRange(0.45, 1.1);
       const stemColor = jungleStemPalette[Math.floor(Math.random() * jungleStemPalette.length)];
       const stemMaterial = new THREE.MeshStandardMaterial({
         color: stemColor,
@@ -1874,7 +1874,7 @@
     const buildBluebell = () => {
       const plant = new THREE.Group();
       const stemHeight = randomRange(26, 48);
-      const stemRadius = randomRange(0.32, 0.55);
+      const stemRadius = randomRange(0.2, 0.38);
       const stemMaterial = new THREE.MeshStandardMaterial({
         color: 0x2b6a3a,
         roughness: 0.6,
