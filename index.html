@@ -267,7 +267,7 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-size: clamp(1.1rem, 2.4vw, 1.6rem);
       font-weight: 700;
       color: var(--c, #6cf79d);
       text-shadow: 0 0 10px var(--c, #6cf79d), 0 0 24px var(--c, #6cf79d);
@@ -297,7 +297,7 @@
 
     .story-panel {
       position: fixed;
-      top: 230px;
+      top: 140px;
       left: 22px;
       z-index: 4;
       width: min(360px, 88vw);
@@ -550,33 +550,38 @@
       const matrixRadius = matrixRect
         ? Math.hypot(matrixRect.width, matrixRect.height) * 0.5 + 60
         : wordCloudPanel ? 0 : 160;
-      const maxRadius = Math.max(matrixRadius + 40, minScreen * 0.42);
       const fontSize = parseFloat(getComputedStyle(word).fontSize) || 24;
       const approxWidth = word.textContent.trim().length * fontSize * 0.6;
       const approxHeight = fontSize * 1.1;
       const wordRadius = Math.hypot(approxWidth, approxHeight) * 0.5 + 10;
+      const safeRadius = Math.max(0, minScreen * 0.5 - wordRadius - 16);
+      const minRadiusCandidate = Math.max(12, safeRadius * 0.25);
+      const minRadius = wordCloudPanel ? Math.min(minRadiusCandidate, safeRadius) : matrixRadius;
+      const maxRadius = wordCloudPanel
+        ? Math.max(minRadius, safeRadius)
+        : Math.max(matrixRadius + 40, minScreen * 0.42);
 
-      let radius = randomRange(matrixRadius, maxRadius);
+      let radius = randomRange(minRadius, maxRadius);
       let angle = randomRange(0, 360);
       let x = 0;
       let y = 0;
       let tries = 0;
       do {
-        radius = randomRange(matrixRadius, maxRadius);
+        radius = randomRange(minRadius, maxRadius);
         angle = randomRange(0, 360);
         const angleRad = (angle * Math.PI) / 180;
         x = Math.cos(angleRad) * radius;
         y = Math.sin(angleRad) * radius;
         tries += 1;
       } while (
-        tries < 60 &&
+        tries < 120 &&
         words.some((other) => {
           if (other === word || other.style.visibility === "hidden") return false;
           const ox = parseFloat(other.dataset.orbitX || "0");
           const oy = parseFloat(other.dataset.orbitY || "0");
           const or = parseFloat(other.dataset.orbitR || "0");
           const dist = Math.hypot(x - ox, y - oy);
-          return dist < wordRadius + or + 16;
+          return dist < wordRadius + or + 28;
         })
       );
 
