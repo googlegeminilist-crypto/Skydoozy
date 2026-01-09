@@ -301,6 +301,7 @@
       left: 22px;
       z-index: 4;
       width: min(360px, 88vw);
+      height: 55vh;
       padding: 14px 16px 18px;
       border-radius: 16px;
       background: rgba(10, 16, 28, 0.06);
@@ -311,7 +312,7 @@
       font-weight: 400;
       pointer-events: auto;
       max-height: 55vh;
-      overflow: auto;
+      overflow: hidden;
       -webkit-backdrop-filter: blur(2px);
       backdrop-filter: blur(2px);
     }
@@ -445,6 +446,8 @@
     </div>
     <div class="title-light" aria-hidden="true"></div>
     <h1>Skydoozy</h1>
+  </div>
+  <section class="story-panel">
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
       <li style="--x: 300; --y: -250; --dx: -8; --dy: 6; --d: 16;">Basketball</li>
@@ -453,20 +456,6 @@
       <li style="--x: -80; --y: 210; --dx: 8; --dy: -10; --d: 13;">Badmiton</li>
       <li style="--x: 120; --y: 210; --dx: -9; --dy: -8; --d: 15;">Table Tennis</li>
     </ul>
-  </div>
-  <section class="story-panel">
-    <p>This is a story about a dog named Banjo. who was white and grey, with a black nose. Banjo wanted to write a story about an adventure, but he also wanted to learn to spell while he wrote.</p>
-    <p>So he had a clever idea: he was going to spell the word "Icehockey". But the twist was this: for every letter, there would be a memory.</p>
-    <p>Here we go... the letter "I" how to begin .... ah ...</p>
-    <p>I: I had an Ice cream one year for my birthday when I lived with my owner, Tom. It was the best birthday present ever.</p>
-    <p>C: One time I collected Conkers with my owners. we had so much fun running in the woods looking for them.</p>
-    <p>E: I remember when I had an Easter egg for the first time, I could have eaten an entire shopload of them.</p>
-    <p>H: I do miss my owners, of course, they were Human, I remember sharing a ham sandwich with one of them, I'm not sure who It was?</p>
-    <p>O: A long time ago, I met an Otter who took me to see an octopus who could juggle owls.</p>
-    <p>C: Oh, how I love Chocolate. I could eat some now, but there's none left. I had the last one before I started writing It was all thanks to Tom he gave me his last chocolate bar before they dropped me off.</p>
-    <p>K: I feel like doing Kickboxing, but no one in this forest can do that. I wish my owners never left me here. I hope they come back for me sometime soon.</p>
-    <p>E: I'm so hungry I haven't eaten for a while, but there's not much to eat here, no fried eggs, oh how I loved having a fried egg with my owners.</p>
-    <p>Y: You poor little thing the great owl of the forest said interupting Banjo's writing, your owners will never come and get you. Tears fell from Banjo's eyes... at least I can now spell ice hockey... they both bust out laughing.</p>
   </section>
   <section class="blog-panel">
     <h2>Skydoozy Blog</h2>
@@ -551,15 +540,16 @@
     const words = Array.from(document.querySelectorAll(".word-cloud li"));
     const wordCloud = document.querySelector(".word-cloud");
     const matrixWindow = document.querySelector(".matrix-window");
+    const wordCloudPanel = wordCloud ? wordCloud.closest(".story-panel") : null;
     const orbitDuration = 22;
     const randomizeWordPosition = (word) => {
       if (!wordCloud) return;
       const cloudRect = wordCloud.getBoundingClientRect();
       const minScreen = Math.min(cloudRect.width, cloudRect.height);
-      const matrixRect = matrixWindow ? matrixWindow.getBoundingClientRect() : null;
+      const matrixRect = matrixWindow && !wordCloudPanel ? matrixWindow.getBoundingClientRect() : null;
       const matrixRadius = matrixRect
         ? Math.hypot(matrixRect.width, matrixRect.height) * 0.5 + 60
-        : 160;
+        : wordCloudPanel ? 0 : 160;
       const maxRadius = Math.max(matrixRadius + 40, minScreen * 0.42);
       const fontSize = parseFloat(getComputedStyle(word).fontSize) || 24;
       const approxWidth = word.textContent.trim().length * fontSize * 0.6;
