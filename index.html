@@ -216,6 +216,45 @@
       backdrop-filter: blur(8px);
     }
 
+    .audio-control {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(9, 16, 28, 0.7);
+      border: 1px solid rgba(77, 166, 255, 0.45);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(77, 166, 255, 0.25);
+      z-index: 7;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+
+    .audio-btn {
+      border: 1px solid rgba(155, 213, 255, 0.6);
+      background: rgba(8, 12, 24, 0.75);
+      color: #d7ecff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .audio-btn:hover {
+      border-color: rgba(124, 255, 149, 0.75);
+      color: #eafff5;
+    }
+
+    .audio-wave {
+      width: 160px;
+      height: 36px;
+      display: block;
+    }
+
     .streak-banner {
       position: fixed;
       top: 18px;
@@ -442,6 +481,11 @@
   </div>
   <div class="streak-banner">Streak <span id="streakValue">Zero</span></div>
   <div class="score-banner">Score: <span id="scoreValue">0</span></div>
+  <div class="audio-control" aria-label="Music controls">
+    <button class="audio-btn" id="audioToggle" type="button">Music On</button>
+    <button class="audio-btn" id="audioSkip" type="button">Skip</button>
+    <canvas class="audio-wave" id="audioWave" width="160" height="36" aria-hidden="true"></canvas>
+  </div>
   <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
@@ -493,6 +537,9 @@
     const scoreValue = document.getElementById("scoreValue");
     const streakValue = document.getElementById("streakValue");
     const scoreBanner = document.querySelector(".score-banner");
+    const audioToggle = document.getElementById("audioToggle");
+    const audioSkip = document.getElementById("audioSkip");
+    const audioWave = document.getElementById("audioWave");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const bgAudio = document.getElementById("bgAudio");
     let score = 0;
@@ -525,12 +572,73 @@
       scoreValue.textContent = score;
     };
     setScore(score);
+    const streakFlash = {
+      duration: 1400,
+      until: 0
+    };
+    const triggerStreakFlash = () => {
+      streakFlash.until = performance.now() + streakFlash.duration;
+    };
     const setStreak = (val) => {
-      streak = Math.max(0, val);
+      const next = Math.max(0, val);
+      const increased = next > streak;
+      streak = next;
       if (!streakValue) return;
       streakValue.textContent = streakWords[streak] || `${streak}`;
+      if (increased) triggerStreakFlash();
     };
     setStreak(streak);
+
+    const audioWaveCtx = audioWave ? audioWave.getContext("2d") : null;
+    const playlist = bgAudio ? [bgAudio.getAttribute("src")] : [];
+    let trackIndex = 0;
+    let userMuted = false;
+    let audioCtx = null;
+    let analyser = null;
+    let audioSource = null;
+
+    const updateAudioToggleLabel = () => {
+      if (!audioToggle || !bgAudio) return;
+      audioToggle.textContent = bgAudio.paused ? "Music On" : "Music Off";
+    };
+
+    const initAudioGraph = () => {
+      if (!bgAudio || audioCtx) return;
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return;
+      audioCtx = new AudioCtor();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.85;
+      audioSource = audioCtx.createMediaElementSource(bgAudio);
+      audioSource.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    };
+
+    const ensureAudioContext = () => {
+      initAudioGraph();
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
+    };
+
+    const playAudio = (fromUser = false) => {
+      if (!bgAudio) return;
+      if (fromUser) ensureAudioContext();
+      userMuted = false;
+      bgAudio.loop = playlist.length <= 1;
+      bgAudio.play().catch(() => {
+        // Browser blocked autoplay; will retry on user interaction.
+      });
+      updateAudioToggleLabel();
+    };
+
+    const pauseAudio = () => {
+      if (!bgAudio) return;
+      userMuted = true;
+      bgAudio.pause();
+      updateAudioToggleLabel();
+    };
 
     const updateScoreBanner = () => {
       if (!scoreBanner || !matrixWindow) return;
@@ -542,19 +650,103 @@
       scoreBanner.style.top = `${y}px`;
     };
 
-    const startBgAudio = () => {
-      if (!bgAudio) return;
+    const startBgAudio = (fromUser = false) => {
+      if (!bgAudio || userMuted) return;
       if (!bgAudio.paused) return;
+      if (fromUser) ensureAudioContext();
       bgAudio.volume = 0.65;
+      bgAudio.loop = playlist.length <= 1;
       bgAudio.play().catch(() => {
         // Browser blocked autoplay; will retry on user interaction.
       });
+      updateAudioToggleLabel();
     };
 
     startBgAudio();
     ["pointerdown", "touchstart", "keydown", "click"].forEach((evt) => {
-      window.addEventListener(evt, startBgAudio, { once: true });
+      window.addEventListener(evt, () => startBgAudio(true), { once: true });
     });
+    updateAudioToggleLabel();
+
+    if (audioToggle) {
+      audioToggle.addEventListener("click", () => {
+        if (!bgAudio) return;
+        if (bgAudio.paused) {
+          playAudio(true);
+        } else {
+          pauseAudio();
+        }
+      });
+    }
+    if (audioSkip) {
+      audioSkip.addEventListener("click", () => {
+        if (!bgAudio) return;
+        if (playlist.length <= 1) {
+          bgAudio.currentTime = 0;
+          playAudio(true);
+          return;
+        }
+        trackIndex = (trackIndex + 1) % playlist.length;
+        bgAudio.src = playlist[trackIndex];
+        bgAudio.load();
+        playAudio(true);
+      });
+    }
+    if (bgAudio) {
+      bgAudio.addEventListener("ended", () => {
+        if (playlist.length <= 1) return;
+        trackIndex = (trackIndex + 1) % playlist.length;
+        bgAudio.src = playlist[trackIndex];
+        bgAudio.load();
+        playAudio(true);
+      });
+      bgAudio.addEventListener("play", updateAudioToggleLabel);
+      bgAudio.addEventListener("pause", updateAudioToggleLabel);
+    }
+
+    const resizeWaveCanvas = () => {
+      if (!audioWave || !audioWaveCtx) return;
+      const rect = audioWave.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      audioWave.width = rect.width * dpr;
+      audioWave.height = rect.height * dpr;
+      audioWaveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const drawWave = () => {
+      if (!audioWave || !audioWaveCtx) return;
+      const rect = audioWave.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      audioWaveCtx.clearRect(0, 0, width, height);
+      audioWaveCtx.lineWidth = 2;
+      audioWaveCtx.strokeStyle = "rgba(155, 213, 255, 0.85)";
+      if (analyser && bgAudio && !bgAudio.paused) {
+        const buffer = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(buffer);
+        audioWaveCtx.beginPath();
+        buffer.forEach((val, i) => {
+          const x = (i / (buffer.length - 1)) * width;
+          const y = (val / 255) * height;
+          if (i === 0) {
+            audioWaveCtx.moveTo(x, y);
+          } else {
+            audioWaveCtx.lineTo(x, y);
+          }
+        });
+        audioWaveCtx.stroke();
+      } else {
+        audioWaveCtx.beginPath();
+        audioWaveCtx.moveTo(0, height * 0.5);
+        audioWaveCtx.lineTo(width, height * 0.5);
+        audioWaveCtx.stroke();
+      }
+      requestAnimationFrame(drawWave);
+    };
+
+    resizeWaveCanvas();
+    drawWave();
+    window.addEventListener("resize", resizeWaveCanvas);
 
     const randomRange = (min, max) => min + Math.random() * (max - min);
 
@@ -2085,21 +2277,37 @@
 
     const animate = () => {
       const t = performance.now() * 0.001;
+      const nowMs = t * 1000;
+      const flashT = Math.max(0, (streakFlash.until - nowMs) / streakFlash.duration);
+      const flashPulse = flashT > 0 ? 0.5 + 0.5 * Math.sin(t * 14 + flashT * 6) : 0;
+      const flashBoost = flashT * (0.6 + 0.4 * flashPulse);
       updateRainbow();
       if (rainbowLights.material) {
-        rainbowLights.material.opacity = 0.7 + Math.sin(t * 2.4) * 0.3;
+        const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
+        rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
+        rainbowLights.material.size = rainbowSettings.lightSize * (1 + flashBoost * 0.7);
       }
       if (rainbowLights.sparkleMaterial && rainbowLights.sparkleGeometry && rainbowLights.sparkleColors) {
         const sparkleAttr = rainbowLights.sparkleGeometry.getAttribute("color");
         for (let i = 0; i < rainbowLights.sparklePhases.length; i++) {
           const idx = i * 3;
           const pulse = 0.55 + 0.45 * Math.sin(t * 3.2 + rainbowLights.sparklePhases[i]);
-          sparkleAttr.array[idx] = rainbowLights.sparkleColors[idx] * pulse;
-          sparkleAttr.array[idx + 1] = rainbowLights.sparkleColors[idx + 1] * pulse;
-          sparkleAttr.array[idx + 2] = rainbowLights.sparkleColors[idx + 2] * pulse;
+          const boost = 1 + flashBoost * 0.9;
+          sparkleAttr.array[idx] = rainbowLights.sparkleColors[idx] * pulse * boost;
+          sparkleAttr.array[idx + 1] = rainbowLights.sparkleColors[idx + 1] * pulse * boost;
+          sparkleAttr.array[idx + 2] = rainbowLights.sparkleColors[idx + 2] * pulse * boost;
         }
         sparkleAttr.needsUpdate = true;
-        rainbowLights.sparkleMaterial.opacity = 0.75 + Math.sin(t * 1.7) * 0.22;
+        const sparkleBase = 0.75 + Math.sin(t * 1.7) * 0.22;
+        rainbowLights.sparkleMaterial.opacity = Math.min(1, sparkleBase + flashBoost * 0.5);
+        rainbowLights.sparkleMaterial.size = rainbowSettings.sparkleSize * (1 + flashBoost * 0.9);
+      }
+      if (rainbowMeshes.length) {
+        const arcBase = 0.85 + Math.sin(t * 1.8) * 0.08;
+        const arcBoost = Math.min(1, arcBase + flashBoost * 0.4);
+        rainbowMeshes.forEach((mesh) => {
+          mesh.material.opacity = arcBoost;
+        });
       }
       if (t > nextSymbolTime) {
         const kind = symbolKinds[symbolIndex % symbolKinds.length];
