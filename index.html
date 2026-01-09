@@ -1421,8 +1421,76 @@
       color: new THREE.Color()
     };
     const glowReactors = [];
+    const glowSources = [];
     const glowTempPosition = new THREE.Vector3();
-    const heroLightWorld = new THREE.Vector3();
+    const glowBlendColor = new THREE.Color();
+
+    const heroSource = {
+      group: heroLightGroup,
+      color: heroLightParams.color,
+      radiusScale: 1,
+      boost: 1,
+      pulseSpeed: 3.1,
+      pulsePhase: heroLightParams.phase,
+      world: new THREE.Vector3()
+    };
+    glowSources.push(heroSource);
+
+    const orbCoreGeometry = new THREE.SphereGeometry(2.2, 16, 16);
+    const extraGlowOrbs = [];
+    const makeGlowOrb = () => {
+      const orbGroup = new THREE.Group();
+      const orbGlowMaterial = heroGlowMaterial.clone();
+      orbGlowMaterial.opacity = 0.7;
+      const orbSprite = new THREE.Sprite(orbGlowMaterial);
+      const baseSize = randomRange(16, 26);
+      orbSprite.scale.setScalar(baseSize);
+      const orbCoreMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.25,
+        metalness: 0.25,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.8
+      });
+      const orbCore = new THREE.Mesh(orbCoreGeometry, orbCoreMaterial);
+      const orbLight = new THREE.PointLight(0xffffff, 1.6, 190, 2);
+      orbGroup.add(orbSprite);
+      orbGroup.add(orbCore);
+      orbGroup.add(orbLight);
+      orbGroup.renderOrder = 4;
+      jungleGroup.add(orbGroup);
+
+      const params = {
+        radius: randomRange(120, 260),
+        speed: randomRange(0.18, 0.4) * (Math.random() < 0.5 ? -1 : 1),
+        phase: Math.random() * Math.PI * 2,
+        bob: randomRange(12, 30),
+        tilt: randomRange(-0.7, 0.7),
+        size: baseSize,
+        color: new THREE.Color()
+      };
+
+      const source = {
+        group: orbGroup,
+        sprite: orbSprite,
+        light: orbLight,
+        coreMaterial: orbCoreMaterial,
+        params,
+        color: params.color,
+        radiusScale: randomRange(0.55, 0.8),
+        boost: randomRange(0.65, 0.95),
+        pulseSpeed: randomRange(2.2, 3.6),
+        pulsePhase: Math.random() * Math.PI * 2,
+        world: new THREE.Vector3()
+      };
+      extraGlowOrbs.push(source);
+      glowSources.push(source);
+    };
+
+    const extraOrbCount = 8;
+    for (let i = 0; i < extraOrbCount; i++) {
+      makeGlowOrb();
+    }
 
     const registerGlowGroup = (group, radius, boost) => {
       const materials = [];
@@ -1443,8 +1511,7 @@
         group,
         materials,
         radius,
-        boost,
-        seed: Math.random() * Math.PI * 2
+        boost
       });
     };
 
@@ -1843,20 +1910,69 @@
       heroGlowMaterial.opacity = 0.72 + heroPulse * 0.26;
       heroGlow.scale.setScalar(54 + heroPulse * 18);
 
-      heroLightGroup.getWorldPosition(heroLightWorld);
+      extraGlowOrbs.forEach((orb) => {
+        const drift = t * orb.params.speed + orb.params.phase;
+        const bob = Math.sin(t * 0.9 + orb.params.phase) * orb.params.bob;
+        const wobble = Math.sin(t * 0.55 + orb.params.phase) * orb.params.tilt;
+        orb.group.position.set(
+          orbitLightCenter.x + Math.cos(drift + wobble) * orb.params.radius,
+          orbitLightCenter.y + bob,
+          orbitLightCenter.z + Math.sin(drift) * orb.params.radius * 0.75
+        );
+        orb.params.color.setHSL((t * 0.08 + orb.params.phase * 0.4) % 1, 0.85, 0.7);
+        orb.light.color.copy(orb.params.color);
+        orb.sprite.material.color.copy(orb.params.color);
+        orb.coreMaterial.color.copy(orb.params.color);
+        orb.coreMaterial.emissive.copy(orb.params.color);
+        const orbPulse = 0.6 + Math.sin(t * 2.6 + orb.params.phase) * 0.35;
+        orb.light.intensity = 1.2 + orbPulse * 1.4;
+        orb.sprite.material.opacity = 0.45 + orbPulse * 0.4;
+        orb.sprite.scale.setScalar(orb.params.size * (0.85 + orbPulse * 0.35));
+      });
+
       jungleGroup.updateWorldMatrix(true, true);
+      glowSources.forEach((source) => {
+        source.group.getWorldPosition(source.world);
+      });
+
       glowReactors.forEach((reactor) => {
         reactor.group.getWorldPosition(glowTempPosition);
-        const distance = glowTempPosition.distanceTo(heroLightWorld);
-        const influence = Math.max(0, 1 - distance / reactor.radius);
-        const flare = influence * influence;
-        const pulse = 0.6 + Math.sin(t * 3.1 + reactor.seed) * 0.4;
-        const boost = flare * reactor.boost;
+        let totalWeight = 0;
+        let colorR = 0;
+        let colorG = 0;
+        let colorB = 0;
+        let pulseMix = 0;
+
+        glowSources.forEach((source) => {
+          const reach = reactor.radius * source.radiusScale;
+          const distance = glowTempPosition.distanceTo(source.world);
+          if (distance >= reach) return;
+          const influence = 1 - distance / reach;
+          const flare = influence * influence;
+          const pulse = 0.6 + Math.sin(t * source.pulseSpeed + source.pulsePhase) * 0.4;
+          const weight = flare * source.boost;
+          totalWeight += weight;
+          colorR += source.color.r * weight;
+          colorG += source.color.g * weight;
+          colorB += source.color.b * weight;
+          pulseMix += pulse * weight;
+        });
+
+        let boost = 0;
+        let pulse = 0;
+        if (totalWeight > 0) {
+          boost = Math.min(1.7, totalWeight);
+          pulse = pulseMix / totalWeight;
+          glowBlendColor.setRGB(colorR / totalWeight, colorG / totalWeight, colorB / totalWeight);
+        } else {
+          glowBlendColor.copy(heroLightParams.color);
+        }
+
         reactor.materials.forEach((entry) => {
-          entry.material.emissive.copy(entry.baseEmissive).lerp(heroLightParams.color, boost * 1.15);
+          entry.material.emissive.copy(entry.baseEmissive).lerp(glowBlendColor, boost * 1.15);
           entry.material.emissiveIntensity = entry.baseIntensity + boost * 2.0 * pulse;
           if (entry.baseColor) {
-            entry.material.color.copy(entry.baseColor).lerp(heroLightParams.color, boost * 0.75 * pulse);
+            entry.material.color.copy(entry.baseColor).lerp(glowBlendColor, boost * 0.75 * pulse);
           }
         });
       });
