@@ -253,12 +253,22 @@
       pointer-events: none;
     }
 
+    .story-hint {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+      pointer-events: none;
+    }
+
     .word-cloud {
       list-style: none;
       padding: 0;
       margin: 0;
-      position: absolute;
-      inset: 0;
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
       pointer-events: none;
       z-index: 3;
     }
@@ -267,7 +277,7 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+      font-size: clamp(0.9rem, 2vw, 1.2rem);
       font-weight: 700;
       color: var(--c, #6cf79d);
       text-shadow: 0 0 10px var(--c, #6cf79d), 0 0 24px var(--c, #6cf79d);
@@ -315,6 +325,9 @@
       overflow: hidden;
       -webkit-backdrop-filter: blur(2px);
       backdrop-filter: blur(2px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
     .blog-panel h2 {
@@ -436,11 +449,6 @@
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
       <div class="matrix-overlay">
-        <div class="matrix-hint">
-          <span id="challengeStatus">When words disappear type here</span>
-          <span id="challengeTimer">--</span>
-        </div>
-        <div class="matrix-microcopy">If correct get 10 points. If not, lose 10 points.</div>
         <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
       </div>
     </div>
@@ -448,6 +456,13 @@
     <h1>Skydoozy</h1>
   </div>
   <section class="story-panel">
+    <div class="story-hint">
+      <div class="matrix-hint">
+        <span id="challengeStatus">When words disappear type in the red box in the matrix box</span>
+        <span id="challengeTimer">--</span>
+      </div>
+      <div class="matrix-microcopy">If correct get 10 points. If not, lose 10 points.</div>
+    </div>
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
       <li style="--x: 300; --y: -250; --dx: -8; --dy: 6; --d: 16;">Basketball</li>
@@ -542,6 +557,7 @@
     const matrixWindow = document.querySelector(".matrix-window");
     const wordCloudPanel = wordCloud ? wordCloud.closest(".story-panel") : null;
     const orbitDuration = 22;
+    const wordSeparation = 50;
     const randomizeWordPosition = (word) => {
       if (!wordCloud) return;
       const cloudRect = wordCloud.getBoundingClientRect();
@@ -574,14 +590,20 @@
         y = Math.sin(angleRad) * radius;
         tries += 1;
       } while (
-        tries < 120 &&
+        tries < 180 &&
         words.some((other) => {
-          if (other === word || other.style.visibility === "hidden") return false;
+          if (
+            other === word ||
+            other.style.visibility === "hidden" ||
+            other.dataset.orbitReady !== "1"
+          ) {
+            return false;
+          }
           const ox = parseFloat(other.dataset.orbitX || "0");
           const oy = parseFloat(other.dataset.orbitY || "0");
           const or = parseFloat(other.dataset.orbitR || "0");
           const dist = Math.hypot(x - ox, y - oy);
-          return dist < wordRadius + or + 28;
+          return dist < wordRadius + or + wordSeparation;
         })
       );
 
@@ -592,15 +614,51 @@
       word.style.setProperty("--a", `${angle.toFixed(1)}deg`);
       word.style.setProperty("--d", orbitDuration.toFixed(1));
     };
+    const layoutWordCloud = () => {
+      if (words.length === 0) return;
+      let attempt = 0;
+      let hasOverlap = true;
+      while (hasOverlap && attempt < 14) {
+        words.forEach((word) => {
+          word.dataset.orbitReady = "0";
+        });
+        words.forEach((word) => {
+          randomizeWordPosition(word);
+          word.dataset.orbitReady = "1";
+        });
+        hasOverlap = false;
+        for (let i = 0; i < words.length; i++) {
+          for (let j = i + 1; j < words.length; j++) {
+            const a = words[i];
+            const b = words[j];
+            if (a.style.visibility === "hidden" || b.style.visibility === "hidden") continue;
+            const ax = parseFloat(a.dataset.orbitX || "0");
+            const ay = parseFloat(a.dataset.orbitY || "0");
+            const ar = parseFloat(a.dataset.orbitR || "0");
+            const bx = parseFloat(b.dataset.orbitX || "0");
+            const by = parseFloat(b.dataset.orbitY || "0");
+            const br = parseFloat(b.dataset.orbitR || "0");
+            const dist = Math.hypot(ax - bx, ay - by);
+            if (dist < ar + br + wordSeparation) {
+              hasOverlap = true;
+              break;
+            }
+          }
+          if (hasOverlap) break;
+        }
+        attempt += 1;
+      }
+    };
     words.forEach((word, i) => {
       const updateColor = () => {
         const c = nonGreenColor();
         word.style.setProperty("--c", c);
       };
       updateColor();
-      randomizeWordPosition(word);
       setInterval(updateColor, 2000 + i * 300);
     });
+    layoutWordCloud();
+    window.addEventListener("resize", layoutWordCloud);
 
     let wordBag = [];
     let lastWord = null;
