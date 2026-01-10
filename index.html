@@ -591,12 +591,29 @@
     setStreak(streak);
 
     const audioWaveCtx = audioWave ? audioWave.getContext("2d") : null;
-    const playlist = bgAudio ? [bgAudio.getAttribute("src")] : [];
-    let trackIndex = 0;
+    const playlist = bgAudio
+      ? [
+          bgAudio.getAttribute("src"),
+          "45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29%201.mp3"
+        ]
+      : [];
+    let trackIndex = playlist.length ? Math.floor(Math.random() * playlist.length) : 0;
     let userMuted = false;
     let audioCtx = null;
     let analyser = null;
     let audioSource = null;
+    const pickRandomTrack = () => {
+      if (playlist.length <= 1) return trackIndex;
+      let next = trackIndex;
+      while (next === trackIndex) {
+        next = Math.floor(Math.random() * playlist.length);
+      }
+      return next;
+    };
+    if (bgAudio && playlist.length) {
+      bgAudio.src = playlist[trackIndex];
+      bgAudio.load();
+    }
 
     const updateAudioToggleLabel = () => {
       if (!audioToggle || !bgAudio) return;
@@ -687,7 +704,7 @@
           playAudio(true);
           return;
         }
-        trackIndex = (trackIndex + 1) % playlist.length;
+        trackIndex = pickRandomTrack();
         bgAudio.src = playlist[trackIndex];
         bgAudio.load();
         playAudio(true);
@@ -696,7 +713,7 @@
     if (bgAudio) {
       bgAudio.addEventListener("ended", () => {
         if (playlist.length <= 1) return;
-        trackIndex = (trackIndex + 1) % playlist.length;
+        trackIndex = pickRandomTrack();
         bgAudio.src = playlist[trackIndex];
         bgAudio.load();
         playAudio(true);
