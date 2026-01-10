@@ -916,6 +916,61 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     scene.add(camera);
+    const clock = new THREE.Clock();
+    const worldUp = new THREE.Vector3(0, 1, 0);
+    const playerState = {
+      group: null,
+      parts: null,
+      speed: 26,
+      groundY: -40,
+      bounds: {
+        x: 230,
+        zMin: -240,
+        zMax: 140
+      }
+    };
+    const moveState = {
+      up: false,
+      down: false,
+      left: false,
+      right: false
+    };
+    const resetMoveState = () => {
+      moveState.up = false;
+      moveState.down = false;
+      moveState.left = false;
+      moveState.right = false;
+    };
+    const playerMove = {
+      forward: new THREE.Vector3(),
+      right: new THREE.Vector3(),
+      direction: new THREE.Vector3()
+    };
+    const setMoveKey = (event, isDown) => {
+      switch (event.key) {
+        case "ArrowUp":
+          moveState.up = isDown;
+          break;
+        case "ArrowDown":
+          moveState.down = isDown;
+          break;
+        case "ArrowLeft":
+          moveState.left = isDown;
+          break;
+        case "ArrowRight":
+          moveState.right = isDown;
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", (event) => setMoveKey(event, true));
+    window.addEventListener("keyup", (event) => setMoveKey(event, false));
+    window.addEventListener("blur", resetMoveState);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) resetMoveState();
+    });
     const rainbowColors = [
       0xff4d4d,
       0xffa64d,
@@ -1959,6 +2014,7 @@
     const jungleGroup = new THREE.Group();
     jungleGroup.position.y = -40;
     scene.add(jungleGroup);
+    playerState.groundY = jungleGroup.position.y;
 
     const orbitLightCenter = new THREE.Vector3(0, 35, -40);
     const orbitGlowTexture = (() => {
@@ -2101,6 +2157,150 @@
         radius,
         boost
       });
+    };
+
+    const createPlantWalker = () => {
+      const walker = new THREE.Group();
+      const bodyGroup = new THREE.Group();
+      const stemMaterial = new THREE.MeshStandardMaterial({
+        color: 0x43c96f,
+        roughness: 0.55,
+        metalness: 0.08,
+        emissive: 0x1d5a3a,
+        emissiveIntensity: 0.35
+      });
+      const headMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8dffbf,
+        roughness: 0.4,
+        metalness: 0.1,
+        emissive: 0x2c6a45,
+        emissiveIntensity: 0.4
+      });
+      const leafMaterial = new THREE.MeshStandardMaterial({
+        color: 0x36d26b,
+        roughness: 0.45,
+        metalness: 0.05,
+        emissive: 0x1b5c3c,
+        emissiveIntensity: 0.35,
+        side: THREE.DoubleSide
+      });
+      const legMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3a2f2a,
+        roughness: 0.6,
+        metalness: 0.15,
+        emissive: 0x1c1412,
+        emissiveIntensity: 0.2
+      });
+
+      const hipHeight = 7.5;
+      const legLength = 6.5;
+      const legGeometry = new THREE.CylinderGeometry(0.8, 0.95, legLength, 12);
+      const footGeometry = new THREE.SphereGeometry(1.15, 12, 12);
+      const makeLeg = (x) => {
+        const legGroup = new THREE.Group();
+        legGroup.position.set(x, hipHeight, 0);
+        const leg = new THREE.Mesh(legGeometry, legMaterial);
+        leg.position.y = -legLength * 0.5;
+        const foot = new THREE.Mesh(footGeometry, legMaterial);
+        foot.position.set(0, -legLength + 0.8, 1.2);
+        foot.scale.set(1.05, 0.6, 1.5);
+        legGroup.add(leg);
+        legGroup.add(foot);
+        return legGroup;
+      };
+      const leftLeg = makeLeg(-2.1);
+      const rightLeg = makeLeg(2.1);
+      walker.add(leftLeg);
+      walker.add(rightLeg);
+
+      bodyGroup.position.y = hipHeight;
+      const stemHeight = 14;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.8, stemHeight, 16), stemMaterial);
+      stem.position.y = stemHeight * 0.5;
+      bodyGroup.add(stem);
+
+      const headRadius = 5.2;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(headRadius, 24, 24), headMaterial);
+      head.position.y = stemHeight + headRadius - 1.0;
+      bodyGroup.add(head);
+
+      const faceGroup = new THREE.Group();
+      faceGroup.position.set(0, 0.2, headRadius * 0.88);
+      head.add(faceGroup);
+      const eyeWhite = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+      const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, emissive: 0x0f0f0f, emissiveIntensity: 0.4 });
+      const eyeGeometry = new THREE.SphereGeometry(0.9, 12, 12);
+      const pupilGeometry = new THREE.SphereGeometry(0.4, 10, 10);
+      const leftEye = new THREE.Mesh(eyeGeometry, eyeWhite);
+      leftEye.position.set(-1.6, 1.1, 0.2);
+      const rightEye = leftEye.clone();
+      rightEye.position.x = 1.6;
+      const leftPupil = new THREE.Mesh(pupilGeometry, pupilMat);
+      leftPupil.position.set(-1.6, 1.0, 0.75);
+      const rightPupil = leftPupil.clone();
+      rightPupil.position.x = 1.6;
+      faceGroup.add(leftEye, rightEye, leftPupil, rightPupil);
+
+      const mouthMaterial = new THREE.MeshStandardMaterial({ color: 0x2b1515, emissive: 0x1a0d0d, emissiveIntensity: 0.4 });
+      const mouth = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.2, 8, 18, Math.PI), mouthMaterial);
+      mouth.position.set(0, -0.4, 0.7);
+      mouth.rotation.x = Math.PI * 0.5;
+      faceGroup.add(mouth);
+
+      const cheekMaterial = new THREE.MeshStandardMaterial({ color: 0xff8fb3, emissive: 0xff6f9c, emissiveIntensity: 0.6 });
+      const cheekGeometry = new THREE.SphereGeometry(0.45, 10, 10);
+      const leftCheek = new THREE.Mesh(cheekGeometry, cheekMaterial);
+      leftCheek.position.set(-2.4, 0.2, 0.25);
+      const rightCheek = leftCheek.clone();
+      rightCheek.position.x = 2.4;
+      faceGroup.add(leftCheek, rightCheek);
+
+      const leafGeometry = new THREE.PlaneGeometry(6, 10, 8, 12);
+      leafGeometry.translate(0, 4, 0);
+      const leafPos = leafGeometry.attributes.position;
+      for (let i = 0; i < leafPos.count; i++) {
+        const y = leafPos.getY(i);
+        const x = leafPos.getX(i);
+        const yNorm = y / 10;
+        const curve = Math.sin(yNorm * Math.PI) * 0.6;
+        leafPos.setZ(i, curve + Math.abs(x) * 0.08);
+      }
+      leafGeometry.computeVertexNormals();
+
+      const leafLeft = new THREE.Mesh(leafGeometry, leafMaterial);
+      leafLeft.position.set(-3.6, stemHeight * 0.55, -0.8);
+      leafLeft.rotation.set(0.15, Math.PI * 0.45, Math.PI * 0.62);
+      const leafRight = new THREE.Mesh(leafGeometry, leafMaterial);
+      leafRight.position.set(3.6, stemHeight * 0.55, -0.8);
+      leafRight.rotation.set(0.15, -Math.PI * 0.45, -Math.PI * 0.62);
+      bodyGroup.add(leafLeft);
+      bodyGroup.add(leafRight);
+
+      const sprout = new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 12), stemMaterial);
+      sprout.position.set(0, stemHeight + headRadius + 1.8, 0);
+      bodyGroup.add(sprout);
+
+      walker.add(bodyGroup);
+      const walkerLight = new THREE.PointLight(0xbaffd8, 1.6, 260, 2);
+      walkerLight.position.set(0, stemHeight + headRadius + 6, 8);
+      walker.add(walkerLight);
+      walker.scale.setScalar(1.6);
+      walker.position.set(0, playerState.groundY + 4, -60);
+      walker.rotation.y = Math.atan2(camera.position.x - walker.position.x, camera.position.z - walker.position.z);
+      scene.add(walker);
+
+      playerState.group = walker;
+      playerState.parts = {
+        body: bodyGroup,
+        bodyBaseY: bodyGroup.position.y,
+        leftLeg,
+        rightLeg,
+        head,
+        leafLeft,
+        leafRight,
+        leafLeftBase: leafLeft.rotation.z,
+        leafRightBase: leafRight.rotation.z
+      };
     };
 
     const randomFlowerColor = () => {
@@ -2407,6 +2607,8 @@
       registerGlowGroup(bluebell, 120, 1.0);
     }
 
+    createPlantWalker();
+
     assignFlowerColorTargets();
     flowerColorShift.nextTime = randomRange(flowerColorShift.minInterval, flowerColorShift.maxInterval);
 
@@ -2420,11 +2622,58 @@
 
     const animate = () => {
       const t = performance.now() * 0.001;
+      const delta = clock.getDelta();
+      let playerMoving = false;
       const nowMs = t * 1000;
       const flashT = Math.max(0, (streakFlash.until - nowMs) / streakFlash.duration);
       const flashPulse = flashT > 0 ? 0.5 + 0.5 * Math.sin(t * 14 + flashT * 6) : 0;
       const flashBoost = flashT * (0.6 + 0.4 * flashPulse);
       updateRainbow();
+      if (playerState.group) {
+        playerMove.right.setFromMatrixColumn(camera.matrixWorld, 0);
+        playerMove.right.y = 0;
+        if (playerMove.right.lengthSq() < 0.001) {
+          playerMove.right.set(1, 0, 0);
+        } else {
+          playerMove.right.normalize();
+        }
+        playerMove.forward.crossVectors(worldUp, playerMove.right).normalize();
+        const moveX = (moveState.right ? 1 : 0) - (moveState.left ? 1 : 0);
+        const moveZ = (moveState.up ? 1 : 0) - (moveState.down ? 1 : 0);
+        if (moveX || moveZ) {
+          playerMove.direction.set(0, 0, 0);
+          playerMove.direction
+            .addScaledVector(playerMove.forward, moveZ)
+            .addScaledVector(playerMove.right, moveX);
+          if (playerMove.direction.lengthSq() > 0) {
+            playerMove.direction.normalize();
+          }
+          playerState.group.position.addScaledVector(playerMove.direction, playerState.speed * delta);
+          playerState.group.position.x = THREE.MathUtils.clamp(
+            playerState.group.position.x,
+            -playerState.bounds.x,
+            playerState.bounds.x
+          );
+          playerState.group.position.z = THREE.MathUtils.clamp(
+            playerState.group.position.z,
+            playerState.bounds.zMin,
+            playerState.bounds.zMax
+          );
+          playerState.group.rotation.y = Math.atan2(playerMove.direction.x, playerMove.direction.z);
+          playerMoving = true;
+        }
+      }
+      if (playerState.parts) {
+        const legSwing = playerMoving ? Math.sin(t * 8) * 0.55 : Math.sin(t * 2.2) * 0.12;
+        playerState.parts.leftLeg.rotation.x = legSwing;
+        playerState.parts.rightLeg.rotation.x = -legSwing;
+        const bob = playerMoving ? Math.abs(Math.sin(t * 8)) * 0.6 : Math.sin(t * 2.1) * 0.12;
+        playerState.parts.body.position.y = playerState.parts.bodyBaseY + bob;
+        const leafWave = Math.sin(t * 2.6) * 0.08 + (playerMoving ? Math.sin(t * 6) * 0.12 : 0);
+        playerState.parts.leafLeft.rotation.z = playerState.parts.leafLeftBase + leafWave;
+        playerState.parts.leafRight.rotation.z = playerState.parts.leafRightBase - leafWave;
+        playerState.parts.head.rotation.y = playerMoving ? Math.sin(t * 3.6) * 0.2 : Math.sin(t * 1.6) * 0.12;
+      }
       if (rainbowLights.material) {
         const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
         rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
