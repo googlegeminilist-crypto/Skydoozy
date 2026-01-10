@@ -40,6 +40,23 @@
         0 0 40px rgba(77, 166, 255, 0.5);
     }
 
+    .title-hint {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-top: 10px;
+      font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+      letter-spacing: 0.03em;
+      text-align: center;
+      max-width: min(520px, 90vw);
+      color: #c084ff;
+      text-shadow:
+        0 0 8px rgba(192, 132, 255, 0.9),
+        0 0 16px rgba(192, 132, 255, 0.65),
+        0 0 28px rgba(120, 40, 255, 0.5);
+    }
+
     .title-stack {
       position: relative;
       display: inline-flex;
@@ -498,6 +515,7 @@
     </div>
     <div class="title-light" aria-hidden="true"></div>
     <h1>Skydoozy</h1>
+    <div class="title-hint">Can you find the character you can control. Hint,its Green!</div>
   </div>
   <section class="story-panel">
     <div class="story-hint">
