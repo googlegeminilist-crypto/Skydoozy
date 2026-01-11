@@ -2147,6 +2147,185 @@
     scene.add(jungleGroup);
     playerState.groundY = jungleGroup.position.y;
 
+    const makeRainDropTexture = () => {
+      const size = 64;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, size, size);
+      const gradient = ctx.createRadialGradient(28, 22, 6, 32, 30, 28);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      gradient.addColorStop(0.55, "rgba(190, 230, 255, 0.85)");
+      gradient.addColorStop(1, "rgba(120, 190, 230, 0.7)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(32, 6);
+      ctx.bezierCurveTo(20, 18, 16, 30, 18, 42);
+      ctx.bezierCurveTo(20, 54, 30, 60, 32, 60);
+      ctx.bezierCurveTo(34, 60, 44, 54, 46, 42);
+      ctx.bezierCurveTo(48, 30, 44, 18, 32, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const texture = new THREE.CanvasTexture(canvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const makeRainSplashTexture = () => {
+      const size = 64;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, size, size);
+      ctx.strokeStyle = "rgba(190, 230, 255, 0.9)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(32, 36, 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(220, 245, 255, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(18, 30);
+      ctx.lineTo(10, 24);
+      ctx.moveTo(46, 30);
+      ctx.lineTo(54, 24);
+      ctx.moveTo(24, 24);
+      ctx.lineTo(18, 14);
+      ctx.moveTo(40, 24);
+      ctx.lineTo(46, 14);
+      ctx.stroke();
+      const texture = new THREE.CanvasTexture(canvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const rainBounds = {
+      x: 240,
+      zMin: -240,
+      zMax: 140,
+      top: 200,
+      bottom: -6
+    };
+    const rainCount = 320;
+    const rainPositions = new Float32Array(rainCount * 3);
+    const rainSpeeds = new Float32Array(rainCount);
+    const resetRainDrop = (i, startAtTop = false) => {
+      const i3 = i * 3;
+      rainPositions[i3] = randomRange(-rainBounds.x, rainBounds.x);
+      rainPositions[i3 + 2] = randomRange(rainBounds.zMin, rainBounds.zMax);
+      rainPositions[i3 + 1] = startAtTop
+        ? rainBounds.top + randomRange(0, 40)
+        : randomRange(rainBounds.bottom, rainBounds.top);
+      rainSpeeds[i] = randomRange(55, 95);
+    };
+    for (let i = 0; i < rainCount; i++) {
+      resetRainDrop(i);
+    }
+    const rainGeometry = new THREE.BufferGeometry();
+    rainGeometry.setAttribute("position", new THREE.BufferAttribute(rainPositions, 3));
+    const rainDropTexture = makeRainDropTexture();
+    const rainMaterial = new THREE.PointsMaterial({
+      map: rainDropTexture,
+      color: 0xd6f0ff,
+      size: 6.2,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      alphaTest: 0.08
+    });
+    const rainPoints = new THREE.Points(rainGeometry, rainMaterial);
+    rainPoints.visible = false;
+    jungleGroup.add(rainPoints);
+    const splashGroup = new THREE.Group();
+    jungleGroup.add(splashGroup);
+    const splashTexture = makeRainSplashTexture();
+    const splashPool = [];
+    const splashCount = 70;
+    for (let i = 0; i < splashCount; i++) {
+      const splashMaterial = new THREE.SpriteMaterial({
+        map: splashTexture,
+        color: 0xbfe8ff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false
+      });
+      const splash = new THREE.Sprite(splashMaterial);
+      splash.scale.set(8, 4, 1);
+      splash.visible = false;
+      splashGroup.add(splash);
+      splashPool.push({ sprite: splash, life: 0, maxLife: 0 });
+    }
+    const spawnSplash = (x, z) => {
+      for (let i = 0; i < splashPool.length; i++) {
+        const entry = splashPool[i];
+        if (entry.life > 0) continue;
+        entry.maxLife = randomRange(0.45, 0.75);
+        entry.life = entry.maxLife;
+        entry.sprite.position.set(x, rainBounds.bottom + 1.2, z);
+        entry.sprite.material.opacity = 0.8;
+        entry.sprite.scale.set(6, 3, 1);
+        entry.sprite.visible = true;
+        break;
+      }
+    };
+    const rainState = {
+      active: false,
+      nextToggle: randomRange(8, 16)
+    };
+    const updateRain = (t, delta) => {
+      if (t >= rainState.nextToggle) {
+        rainState.active = !rainState.active;
+        rainState.nextToggle = t + (rainState.active ? randomRange(6, 10) : randomRange(12, 22));
+        rainPoints.visible = rainState.active;
+        if (rainState.active) {
+          for (let i = 0; i < rainCount; i++) {
+            resetRainDrop(i, true);
+          }
+          rainGeometry.attributes.position.needsUpdate = true;
+        }
+      }
+      if (!rainState.active) return;
+      for (let i = 0; i < rainCount; i++) {
+        const i3 = i * 3;
+        rainPositions[i3 + 1] -= rainSpeeds[i] * delta;
+        if (rainPositions[i3 + 1] < rainBounds.bottom) {
+          spawnSplash(rainPositions[i3], rainPositions[i3 + 2]);
+          resetRainDrop(i, true);
+        }
+      }
+      rainGeometry.attributes.position.needsUpdate = true;
+      splashPool.forEach((entry) => {
+        if (entry.life <= 0) return;
+        entry.life -= delta;
+        if (entry.life <= 0) {
+          entry.life = 0;
+          entry.sprite.visible = false;
+          entry.sprite.material.opacity = 0;
+          return;
+        }
+        const t = 1 - entry.life / entry.maxLife;
+        entry.sprite.material.opacity = (1 - t) * 0.8;
+        const scale = 6 + t * 8;
+        entry.sprite.scale.set(scale, scale * 0.5, 1);
+      });
+    };
+
     const orbitLightCenter = new THREE.Vector3(0, 35, -40);
     const orbitGlowTexture = (() => {
       const size = 128;
@@ -2808,6 +2987,7 @@
       if (titleStack) {
         titleStack.classList.toggle("is-hidden", playerMoving);
       }
+      updateRain(t, delta);
       if (rainbowLights.material) {
         const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
         rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
