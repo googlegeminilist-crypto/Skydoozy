@@ -1686,7 +1686,6 @@
     })();
     let rainAllowed = true;
     let smokeAllowed = false;
-    let triggerShootingStars = null;
     const levelButtons = document.querySelectorAll(".level-btn");
     const updateTimer = () => {
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
@@ -1720,9 +1719,6 @@
           if (!Number.isFinite(seconds)) return;
           setChallengeSeconds(seconds);
           updateLevelSelection();
-          if (btn.dataset.level === "2" && typeof triggerShootingStars === "function") {
-            triggerShootingStars();
-          }
         });
       });
     }
@@ -2702,109 +2698,6 @@
       });
     };
 
-    const makeShootingStarTexture = () => {
-      const width = 160;
-      const height = 28;
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      const gradient = ctx.createLinearGradient(0, height * 0.5, width, height * 0.5);
-      gradient.addColorStop(0, "rgba(80, 170, 255, 0)");
-      gradient.addColorStop(0.2, "rgba(80, 190, 255, 0.45)");
-      gradient.addColorStop(0.55, "rgba(160, 230, 255, 0.95)");
-      gradient.addColorStop(1, "rgba(80, 170, 255, 0)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, height * 0.4, width, height * 0.2);
-      ctx.fillStyle = "rgba(190, 240, 255, 0.95)";
-      ctx.beginPath();
-      ctx.ellipse(width * 0.62, height * 0.5, 5, 3.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      const texture = new THREE.CanvasTexture(canvas);
-      if ("colorSpace" in texture) {
-        texture.colorSpace = THREE.SRGBColorSpace;
-      } else if ("encoding" in texture) {
-        texture.encoding = THREE.sRGBEncoding;
-      }
-      texture.needsUpdate = true;
-      return texture;
-    };
-
-    const shootingStarTexture = makeShootingStarTexture();
-    const shootingStarGroup = new THREE.Group();
-    shootingStarGroup.renderOrder = 6;
-    scene.add(shootingStarGroup);
-    const shootingStars = [];
-    const shootingPalette = [0x8ad4ff, 0x5fb9ff, 0xb8e7ff, 0x6fd9ff, 0xa2f0ff];
-    const shootingState = {
-      pending: 0,
-      nextSpawn: 0
-    };
-    const spawnShootingStar = () => {
-      const forward = new THREE.Vector3().subVectors(cameraTarget, camera.position).normalize();
-      const right = new THREE.Vector3().crossVectors(forward, worldUp).normalize();
-      const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-      const origin = new THREE.Vector3()
-        .copy(camera.position)
-        .addScaledVector(forward, 180)
-        .addScaledVector(right, randomRange(-260, 260))
-        .addScaledVector(up, randomRange(-140, 140));
-      const dir = new THREE.Vector3()
-        .addScaledVector(right, randomRange(0.7, 1.05) * (Math.random() < 0.5 ? -1 : 1))
-        .addScaledVector(up, randomRange(-0.4, 0.4))
-        .addScaledVector(forward, randomRange(0.2, 0.5))
-        .normalize();
-      const colorHex = shootingPalette[Math.floor(randomRange(0, shootingPalette.length))];
-      const material = new THREE.SpriteMaterial({
-        map: shootingStarTexture,
-        color: colorHex,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        depthTest: false
-      });
-      const sprite = new THREE.Sprite(material);
-      const length = randomRange(90, 150);
-      const width = randomRange(3.5, 5.5);
-      sprite.scale.set(length, width, 1);
-      sprite.position.copy(origin);
-      const angle = Math.atan2(dir.dot(up), dir.dot(right));
-      sprite.material.rotation = angle;
-      shootingStarGroup.add(sprite);
-      const maxLife = randomRange(0.7, 1.1);
-      shootingStars.push({
-        sprite,
-        velocity: dir.multiplyScalar(randomRange(260, 380)),
-        life: maxLife,
-        maxLife
-      });
-    };
-    const updateShootingStars = (t, delta) => {
-      if (shootingState.pending > 0 && t >= shootingState.nextSpawn) {
-        spawnShootingStar();
-        shootingState.pending -= 1;
-        shootingState.nextSpawn = t + randomRange(0.06, 0.14);
-      }
-      for (let i = shootingStars.length - 1; i >= 0; i--) {
-        const star = shootingStars[i];
-        star.sprite.position.addScaledVector(star.velocity, delta);
-        star.life -= delta;
-        if (star.life <= 0) {
-          shootingStarGroup.remove(star.sprite);
-          star.sprite.material.dispose();
-          shootingStars.splice(i, 1);
-          continue;
-        }
-        const fade = star.life / star.maxLife;
-        star.sprite.material.opacity = Math.min(1, fade) * 0.95;
-      }
-    };
-    triggerShootingStars = () => {
-      shootingState.pending = Math.floor(randomRange(7, 12));
-      shootingState.nextSpawn = performance.now() * 0.001;
-    };
-
     const orbitLightCenter = new THREE.Vector3(0, 35, -40);
     const orbitGlowTexture = (() => {
       const size = 128;
@@ -3473,7 +3366,6 @@
       }
       updateRain(t, delta);
       updateSmoke(t, delta);
-      updateShootingStars(t, delta);
       if (rainbowLights.material) {
         const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
         rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
