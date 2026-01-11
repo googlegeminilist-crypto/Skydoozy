@@ -1076,6 +1076,55 @@
     };
     let characterFound = false;
     let sparklesEnabled = false;
+    const characterClickKey = "skydoozy-character-click";
+    const controlDayKey = "skydoozy-control-day";
+    const getTodayKey = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = `${now.getMonth() + 1}`.padStart(2, "0");
+      const day = `${now.getDate()}`.padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+    let characterClickedToday = false;
+    let controlsBlockedToday = false;
+    let controlsSessionActive = false;
+    const loadCharacterClick = () => {
+      try {
+        const stored = localStorage.getItem(characterClickKey);
+        characterClickedToday = stored === getTodayKey();
+      } catch (error) {
+        characterClickedToday = false;
+      }
+    };
+    const loadControlStatus = () => {
+      try {
+        controlsBlockedToday = localStorage.getItem(controlDayKey) === getTodayKey();
+      } catch (error) {
+        controlsBlockedToday = false;
+      }
+    };
+    const markCharacterClicked = () => {
+      characterClickedToday = true;
+      try {
+        localStorage.setItem(characterClickKey, getTodayKey());
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    };
+    const markControlsUsed = () => {
+      controlsSessionActive = true;
+      controlsBlockedToday = false;
+      try {
+        localStorage.setItem(controlDayKey, getTodayKey());
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    };
+    loadCharacterClick();
+    loadControlStatus();
+    if (characterClickedToday) {
+      sparklesEnabled = true;
+    }
 
     if (!window.THREE) {
       console.warn("Three.js failed to load. Make sure three.min.js is next to index.html.");
@@ -1104,6 +1153,7 @@
     const playerState = {
       group: null,
       parts: null,
+      clickProxy: null,
       speed: 26,
       groundY: -40,
       bounds: {
@@ -1267,15 +1317,43 @@
     const setMoveKey = (event, isDown) => {
       switch (event.key) {
         case "ArrowUp":
+          if (!controlsSessionActive) {
+            if (controlsBlockedToday) {
+              event.preventDefault();
+              return;
+            }
+            if (isDown) markControlsUsed();
+          }
           moveState.up = isDown;
           break;
         case "ArrowDown":
+          if (!controlsSessionActive) {
+            if (controlsBlockedToday) {
+              event.preventDefault();
+              return;
+            }
+            if (isDown) markControlsUsed();
+          }
           moveState.down = isDown;
           break;
         case "ArrowLeft":
+          if (!controlsSessionActive) {
+            if (controlsBlockedToday) {
+              event.preventDefault();
+              return;
+            }
+            if (isDown) markControlsUsed();
+          }
           moveState.left = isDown;
           break;
         case "ArrowRight":
+          if (!controlsSessionActive) {
+            if (controlsBlockedToday) {
+              event.preventDefault();
+              return;
+            }
+            if (isDown) markControlsUsed();
+          }
           moveState.right = isDown;
           break;
         default:
@@ -1283,8 +1361,32 @@
       }
       event.preventDefault();
     };
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const isUiTarget = (target) => {
+      if (!(target instanceof Element)) return false;
+      return Boolean(
+        target.closest(".story-panel, .blog-panel, .audio-control, .app-note")
+      );
+    };
+    const handleCharacterClick = (event) => {
+      if (!playerState.group || characterClickedToday) return;
+      if (isUiTarget(event.target)) return;
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      camera.updateMatrixWorld();
+      playerState.group.updateWorldMatrix(true, true);
+      raycaster.setFromCamera(pointer, camera);
+      const target = playerState.clickProxy || playerState.group;
+      const hits = raycaster.intersectObject(target, true);
+      if (!hits.length) return;
+      markCharacterClicked();
+      sparklesEnabled = true;
+    };
     window.addEventListener("keydown", (event) => setMoveKey(event, true));
     window.addEventListener("keyup", (event) => setMoveKey(event, false));
+    window.addEventListener("pointerdown", handleCharacterClick);
     window.addEventListener("blur", resetMoveState);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) resetMoveState();
@@ -2963,6 +3065,13 @@
       bodyGroup.add(sprout);
 
       walker.add(bodyGroup);
+      const clickProxy = new THREE.Mesh(
+        new THREE.SphereGeometry(10, 16, 16),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      clickProxy.name = "characterClickProxy";
+      clickProxy.position.set(0, stemHeight + headRadius * 0.6, 0);
+      walker.add(clickProxy);
       const walkerLight = new THREE.PointLight(0xbaffd8, 1.6, 260, 2);
       walkerLight.position.set(0, stemHeight + headRadius + 6, 8);
       walker.add(walkerLight);
@@ -2972,6 +3081,7 @@
       scene.add(walker);
 
       playerState.group = walker;
+      playerState.clickProxy = clickProxy;
       playerState.parts = {
         body: bodyGroup,
         bodyBaseY: bodyGroup.position.y,
@@ -3355,9 +3465,6 @@
         playerState.parts.leafLeft.rotation.z = playerState.parts.leafLeftBase + leafWave;
         playerState.parts.leafRight.rotation.z = playerState.parts.leafRightBase - leafWave;
         playerState.parts.head.rotation.y = playerMoving ? Math.sin(t * 3.6) * 0.2 : Math.sin(t * 1.6) * 0.12;
-      }
-      if (playerMoving && !sparklesEnabled) {
-        sparklesEnabled = true;
       }
       pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
       updateGroundSparkles(t, delta);
