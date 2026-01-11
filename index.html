@@ -368,6 +368,59 @@
       overflow: auto;
     }
 
+    .level-select {
+      margin: 10px 0 12px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(12, 16, 28, 0.6);
+      border: 1px solid rgba(192, 132, 255, 0.35);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+    }
+
+    .level-select-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #d6b8ff;
+      margin-bottom: 6px;
+    }
+
+    .level-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 6px;
+    }
+
+    .level-btn {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid rgba(192, 132, 255, 0.55);
+      background: rgba(24, 18, 40, 0.75);
+      color: #eadcff;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      text-shadow: 0 0 8px rgba(192, 132, 255, 0.5);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .level-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(192, 132, 255, 0.25);
+    }
+
+    .level-btn.is-active {
+      background: rgba(192, 132, 255, 0.2);
+      border-color: rgba(192, 132, 255, 0.9);
+      color: #fff4ff;
+      box-shadow: 0 0 14px rgba(192, 132, 255, 0.6);
+    }
+
     .story-panel {
       position: fixed;
       top: 140px;
@@ -543,6 +596,14 @@
   </section>
   <section class="blog-panel">
     <h2>Skydoozy Blog</h2>
+    <div class="level-select" aria-label="Difficulty levels">
+      <div class="level-select-title">Levels</div>
+      <ul class="level-list">
+        <li><button class="level-btn" type="button" data-level="1" data-seconds="20">Level 1</button></li>
+        <li><button class="level-btn" type="button" data-level="2" data-seconds="10">Level 2</button></li>
+        <li><button class="level-btn" type="button" data-level="3" data-seconds="5">Level 3</button></li>
+      </ul>
+    </div>
     <p>Training your memory is very good for your brain. It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because it's all you think about when you do it, so all your other thoughts fade away.</p>
     <p>I've designed this webpage to give you a colourful experience while your developing this skill. I'll keep updating and improving it as much as possible.</p>
     <p>If you like this webpage, try my app Skybammy on the App Store. Currently, it requires iOS 17 or higher.</p>
@@ -1396,9 +1457,35 @@
     let countdownInterval = null;
     let scheduleTimeout = null;
     let timeLeft = 0;
+    let challengeSeconds = 20;
+    const levelButtons = document.querySelectorAll(".level-btn");
     const updateTimer = () => {
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
     };
+    const setChallengeSeconds = (seconds) => {
+      challengeSeconds = seconds;
+      if (challengeActive) {
+        timeLeft = challengeSeconds;
+        updateTimer();
+      }
+    };
+    const updateLevelSelection = () => {
+      levelButtons.forEach((btn) => {
+        const seconds = Number(btn.dataset.seconds);
+        btn.classList.toggle("is-active", seconds === challengeSeconds);
+      });
+    };
+    if (levelButtons.length) {
+      updateLevelSelection();
+      levelButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const seconds = Number(btn.dataset.seconds);
+          if (!Number.isFinite(seconds)) return;
+          setChallengeSeconds(seconds);
+          updateLevelSelection();
+        });
+      });
+    }
 
     const endChallenge = (message) => {
       challengeActive = false;
@@ -1437,7 +1524,7 @@
         return;
       }
       activeWord.style.visibility = "hidden";
-      timeLeft = 20;
+      timeLeft = challengeSeconds;
       updateTimer();
       challengeInput.value = "";
       challengeInput.focus();
