@@ -1116,7 +1116,10 @@
     let characterFound = false;
     let sparklesEnabled = false;
     const characterClickKey = "skydoozy-character-click";
-    const controlDayKey = "skydoozy-control-day";
+    const controlUntilKey = "skydoozy-control-until";
+    const lastMoveKey = "skydoozy-last-move";
+    const debugResetKey = "skydoozy-debug-reset";
+    const lockDurationMs = 24 * 60 * 60 * 1000;
     const getTodayKey = () => {
       const now = new Date();
       const year = now.getFullYear();
@@ -1127,6 +1130,19 @@
     let characterClickedToday = false;
     let controlsBlockedToday = false;
     let controlsSessionActive = false;
+    let controlsLockedUntil = 0;
+    let lastMoveAt = 0;
+    let lastMoveWriteAt = 0;
+    let hasWalked = false;
+    let everLeftHouse = false;
+    let wasInHouse = false;
+    let houseBounds = null;
+    const isInsideHouse = (position) => {
+      if (!houseBounds || !position) return false;
+      const dx = position.x - houseBounds.x;
+      const dz = position.z - houseBounds.z;
+      return Math.abs(dx) <= houseBounds.halfWidth && Math.abs(dz) <= houseBounds.halfDepth;
+    };
     const loadCharacterClick = () => {
       try {
         const stored = localStorage.getItem(characterClickKey);
@@ -1135,9 +1151,71 @@
         characterClickedToday = false;
       }
     };
+    const updateControlLockState = (nowEpoch) => {
+      if (!controlsBlockedToday) return;
+      if (controlsLockedUntil && nowEpoch >= controlsLockedUntil) {
+        controlsBlockedToday = false;
+        controlsSessionActive = false;
+        controlsLockedUntil = 0;
+        lastMoveAt = 0;
+        lastMoveWriteAt = 0;
+        hasWalked = false;
+        everLeftHouse = false;
+        wasInHouse = false;
+        try {
+          localStorage.removeItem(controlUntilKey);
+          localStorage.removeItem(lastMoveKey);
+        } catch (error) {
+          // Ignore storage failures.
+        }
+      }
+    };
+    const resetControlLock = (markUsed = false) => {
+      controlsBlockedToday = false;
+      controlsSessionActive = false;
+      controlsLockedUntil = 0;
+      lastMoveAt = 0;
+      lastMoveWriteAt = 0;
+      hasWalked = false;
+      everLeftHouse = false;
+      wasInHouse = false;
+      try {
+        localStorage.removeItem(controlUntilKey);
+        localStorage.removeItem(lastMoveKey);
+        if (markUsed) {
+          localStorage.setItem(debugResetKey, "1");
+        }
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    };
     const loadControlStatus = () => {
       try {
-        controlsBlockedToday = localStorage.getItem(controlDayKey) === getTodayKey();
+        if (localStorage.getItem(debugResetKey) !== "1") {
+          resetControlLock(true);
+        }
+        const nowEpoch = Date.now();
+        const storedUntil = Number(localStorage.getItem(controlUntilKey));
+        if (Number.isFinite(storedUntil)) {
+          if (storedUntil > nowEpoch) {
+            controlsBlockedToday = true;
+            controlsSessionActive = true;
+            controlsLockedUntil = storedUntil;
+          } else {
+            localStorage.removeItem(controlUntilKey);
+          }
+        }
+        const storedMoveAt = Number(localStorage.getItem(lastMoveKey));
+        if (Number.isFinite(storedMoveAt) && storedMoveAt > 0) {
+          if (nowEpoch - storedMoveAt < lockDurationMs) {
+            lastMoveAt = storedMoveAt;
+            controlsSessionActive = true;
+            hasWalked = true;
+          } else {
+            localStorage.removeItem(lastMoveKey);
+            hasWalked = false;
+          }
+        }
       } catch (error) {
         controlsBlockedToday = false;
       }
@@ -1150,11 +1228,30 @@
         // Ignore storage failures.
       }
     };
+    const persistLastMove = (timeMs) => {
+      try {
+        localStorage.setItem(lastMoveKey, `${timeMs}`);
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    };
     const markControlsUsed = () => {
       controlsSessionActive = true;
-      controlsBlockedToday = false;
+      const nowMs = Date.now();
+      lastMoveAt = nowMs;
+      if (nowMs - lastMoveWriteAt > 1000) {
+        lastMoveWriteAt = nowMs;
+        persistLastMove(nowMs);
+      }
+    };
+    const markControlsLocked = () => {
+      if (controlsBlockedToday) return;
+      const lockUntil = (lastMoveAt > 0 ? lastMoveAt : Date.now()) + lockDurationMs;
+      controlsBlockedToday = true;
+      controlsSessionActive = true;
+      controlsLockedUntil = lockUntil;
       try {
-        localStorage.setItem(controlDayKey, getTodayKey());
+        localStorage.setItem(controlUntilKey, `${lockUntil}`);
       } catch (error) {
         // Ignore storage failures.
       }
@@ -1355,45 +1452,26 @@
       sparkleGeometry.attributes.color.needsUpdate = true;
     };
     const setMoveKey = (event, isDown) => {
+      updateControlLockState(Date.now());
+      if (controlsBlockedToday) {
+        event.preventDefault();
+        return;
+      }
       switch (event.key) {
         case "ArrowUp":
-          if (!controlsSessionActive) {
-            if (controlsBlockedToday) {
-              event.preventDefault();
-              return;
-            }
-            if (isDown) markControlsUsed();
-          }
+          if (isDown) markControlsUsed();
           moveState.up = isDown;
           break;
         case "ArrowDown":
-          if (!controlsSessionActive) {
-            if (controlsBlockedToday) {
-              event.preventDefault();
-              return;
-            }
-            if (isDown) markControlsUsed();
-          }
+          if (isDown) markControlsUsed();
           moveState.down = isDown;
           break;
         case "ArrowLeft":
-          if (!controlsSessionActive) {
-            if (controlsBlockedToday) {
-              event.preventDefault();
-              return;
-            }
-            if (isDown) markControlsUsed();
-          }
+          if (isDown) markControlsUsed();
           moveState.left = isDown;
           break;
         case "ArrowRight":
-          if (!controlsSessionActive) {
-            if (controlsBlockedToday) {
-              event.preventDefault();
-              return;
-            }
-            if (isDown) markControlsUsed();
-          }
+          if (isDown) markControlsUsed();
           moveState.right = isDown;
           break;
         default:
@@ -3441,6 +3519,93 @@
 
     createPlantWalker();
 
+    const buildHouse = () => {
+      const houseSize = { width: 58, height: 34, depth: 44 };
+      const houseGroup = new THREE.Group();
+      houseGroup.position.set(0, playerState.groundY + houseSize.height * 0.5, -120);
+
+      const baseMaterial = new THREE.MeshStandardMaterial({
+        color: 0x7b4b2a,
+        roughness: 0.75,
+        metalness: 0.08,
+        emissive: 0x2a1508,
+        emissiveIntensity: 0.2
+      });
+      const roofMaterial = new THREE.MeshStandardMaterial({
+        color: 0x9b2f2f,
+        roughness: 0.65,
+        metalness: 0.08,
+        emissive: 0x330909,
+        emissiveIntensity: 0.25
+      });
+
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(houseSize.width, houseSize.height, houseSize.depth),
+        baseMaterial
+      );
+      houseGroup.add(base);
+
+      const roofHeight = 14;
+      const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(houseSize.width * 0.65, roofHeight, 4),
+        roofMaterial
+      );
+      roof.position.y = houseSize.height * 0.5 + roofHeight * 0.5 - 1;
+      roof.rotation.y = Math.PI * 0.25;
+      houseGroup.add(roof);
+
+      const doorMaterial = new THREE.MeshStandardMaterial({
+        color: 0x3b2212,
+        roughness: 0.85,
+        metalness: 0.05,
+        emissive: 0x1a0d07,
+        emissiveIntensity: 0.2
+      });
+      const door = new THREE.Mesh(new THREE.BoxGeometry(4.6, 7.2, 0.8), doorMaterial);
+      door.position.set(0, -houseSize.height * 0.5 + 6.4, houseSize.depth * 0.5 + 0.8);
+      houseGroup.add(door);
+
+      const windowMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8fd9ff,
+        roughness: 0.3,
+        metalness: 0.2,
+        emissive: 0x1a3d4f,
+        emissiveIntensity: 0.6,
+        transparent: true,
+        opacity: 0.85
+      });
+      const windowGeo = new THREE.BoxGeometry(3.2, 3.2, 0.6);
+      const windowLeft = new THREE.Mesh(windowGeo, windowMaterial);
+      windowLeft.position.set(-13.5, 4.2, houseSize.depth * 0.5 + 0.5);
+      const windowRight = windowLeft.clone();
+      windowRight.position.x = 13.5;
+      houseGroup.add(windowLeft, windowRight);
+
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(4.2, 9.5, 4.2), baseMaterial.clone());
+      chimney.position.set(-houseSize.width * 0.2, houseSize.height * 0.5 + 6, -houseSize.depth * 0.12);
+      houseGroup.add(chimney);
+
+      const porchLight = new THREE.PointLight(0xffd1a3, 1.2, 140, 2);
+      porchLight.position.set(0, 3.8, houseSize.depth * 0.6);
+      houseGroup.add(porchLight);
+
+      scene.add(houseGroup);
+      houseBounds = {
+        x: houseGroup.position.x,
+        z: houseGroup.position.z,
+        halfWidth: houseSize.width * 0.43,
+        halfDepth: houseSize.depth * 0.4
+      };
+
+      return houseGroup;
+    };
+
+    buildHouse();
+    if (playerState.group) {
+      wasInHouse = isInsideHouse(playerState.group.position);
+      everLeftHouse = !wasInHouse;
+    }
+
     assignFlowerColorTargets();
     flowerColorShift.nextTime = randomRange(flowerColorShift.minInterval, flowerColorShift.maxInterval);
 
@@ -3457,6 +3622,8 @@
       const delta = clock.getDelta();
       let playerMoving = false;
       const nowMs = t * 1000;
+      const nowEpoch = Date.now();
+      updateControlLockState(nowEpoch);
       const flashT = Math.max(0, (streakFlash.until - nowMs) / streakFlash.duration);
       const flashPulse = flashT > 0 ? 0.5 + 0.5 * Math.sin(t * 14 + flashT * 6) : 0;
       const flashBoost = flashT * (0.6 + 0.4 * flashPulse);
@@ -3495,6 +3662,23 @@
           playerMoving = true;
         }
       }
+      if (playerMoving) {
+        hasWalked = true;
+        lastMoveAt = nowEpoch;
+        if (nowEpoch - lastMoveWriteAt > 1000) {
+          lastMoveWriteAt = nowEpoch;
+          persistLastMove(nowEpoch);
+        }
+      }
+      const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
+      if (!inHouse && hasWalked) {
+        everLeftHouse = true;
+      }
+      if (!controlsBlockedToday && hasWalked && everLeftHouse && !wasInHouse && inHouse) {
+        markControlsLocked();
+        resetMoveState();
+      }
+      wasInHouse = inHouse;
       if (playerState.parts) {
         const legSwing = playerMoving ? Math.sin(t * 8) * 0.55 : Math.sin(t * 2.2) * 0.12;
         playerState.parts.leftLeg.rotation.x = legSwing;
