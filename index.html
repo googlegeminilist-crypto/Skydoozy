@@ -587,6 +587,7 @@
     <canvas class="audio-wave" id="audioWave" width="160" height="36" aria-hidden="true"></canvas>
   </div>
   <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
+  <audio id="voiceAudio" src="ElevenLabs_2026-01-11T02_53_58_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <div class="title-stack">
@@ -653,6 +654,7 @@
     const audioWave = document.getElementById("audioWave");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const bgAudio = document.getElementById("bgAudio");
+    const voiceAudio = document.getElementById("voiceAudio");
     let score = 0;
     let streak = 0;
     const streakWords = [
@@ -730,6 +732,43 @@
       if (!audioToggle || !bgAudio) return;
       audioToggle.textContent = bgAudio.paused ? "Music On" : "Music Off";
     };
+
+    const voiceDuck = {
+      active: false,
+      prevVolume: 0.65
+    };
+    const startVoiceDuck = () => {
+      if (!bgAudio) return;
+      voiceDuck.prevVolume = bgAudio.volume;
+      bgAudio.volume = 0.2;
+      voiceDuck.active = true;
+    };
+    const endVoiceDuck = () => {
+      if (!bgAudio || !voiceDuck.active) return;
+      bgAudio.volume = voiceDuck.prevVolume;
+      voiceDuck.active = false;
+    };
+    const playVoiceCue = () => {
+      if (!voiceAudio) return;
+      startVoiceDuck();
+      voiceAudio.volume = 0.9;
+      try {
+        voiceAudio.currentTime = 0;
+      } catch (error) {
+        // Ignore seek errors.
+      }
+      voiceAudio.play().catch(() => {
+        endVoiceDuck();
+      });
+    };
+    if (voiceAudio) {
+      voiceAudio.addEventListener("ended", endVoiceDuck);
+      voiceAudio.addEventListener("pause", () => {
+        if (voiceAudio.currentTime > 0 && !voiceAudio.ended) {
+          endVoiceDuck();
+        }
+      });
+    }
 
     const initAudioGraph = () => {
       if (!bgAudio || audioCtx) return;
@@ -1119,6 +1158,7 @@
       } catch (error) {
         // Ignore storage failures.
       }
+      playVoiceCue();
     };
     loadCharacterClick();
     loadControlStatus();
