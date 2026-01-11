@@ -658,6 +658,7 @@
     const streakValue = document.getElementById("streakValue");
     const scoreBanner = document.querySelector(".score-banner");
     const titleStack = document.querySelector(".title-stack");
+    const titleHint = document.querySelector(".title-hint");
     const audioToggle = document.getElementById("audioToggle");
     const audioSkip = document.getElementById("audioSkip");
     const audioWave = document.getElementById("audioWave");
@@ -730,6 +731,11 @@
       if (increased) triggerStreakFlash();
     };
     setStreak(streak);
+    const hintDefaultText = "His home, please enter after walking.";
+    const hintAfterClickText = "Enter his home after walking, click on it to use him the next day.";
+    if (titleHint) {
+      titleHint.textContent = hintDefaultText;
+    }
 
     const audioWaveCtx = audioWave ? audioWave.getContext("2d") : null;
     const playlist = bgAudio
@@ -1300,6 +1306,9 @@
     loadControlStatus();
     if (characterClickedToday) {
       sparklesEnabled = true;
+      if (titleHint) {
+        titleHint.textContent = hintAfterClickText;
+      }
     }
 
     if (!window.THREE) {
@@ -1540,6 +1549,9 @@
       if (!hits.length) return;
       markCharacterClicked();
       sparklesEnabled = true;
+      if (titleHint) {
+        titleHint.textContent = hintAfterClickText;
+      }
     };
     window.addEventListener("keydown", (event) => setMoveKey(event, true));
     window.addEventListener("keyup", (event) => setMoveKey(event, false));
