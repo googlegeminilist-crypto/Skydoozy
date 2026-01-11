@@ -1137,6 +1137,11 @@
     let everLeftHouse = false;
     let wasInHouse = false;
     let houseBounds = null;
+    let houseDoorPivot = null;
+    let houseDoorAngle = 0;
+    const houseDoorOpenAngle = -Math.PI * 0.5;
+    const houseDoorClosedAngle = 0;
+    const houseDoorSpeed = 6;
     const isInsideHouse = (position) => {
       if (!houseBounds || !position) return false;
       const dx = position.x - houseBounds.x;
@@ -3561,9 +3566,20 @@
         emissive: 0x1a0d07,
         emissiveIntensity: 0.2
       });
-      const door = new THREE.Mesh(new THREE.BoxGeometry(4.6, 7.2, 0.8), doorMaterial);
-      door.position.set(0, -houseSize.height * 0.5 + 9.5, houseSize.depth * 0.5 + 1);
-      houseGroup.add(door);
+      const doorWidth = 9;
+      const doorHeight = 13.5;
+      const doorDepth = 1.1;
+      const door = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth), doorMaterial);
+      const doorPivot = new THREE.Group();
+      door.position.set(doorWidth * 0.5, 0, 0);
+      doorPivot.add(door);
+      doorPivot.position.set(
+        -doorWidth * 0.5,
+        -houseSize.height * 0.5 + doorHeight * 0.5,
+        houseSize.depth * 0.5 + doorDepth * 0.5 + 0.1
+      );
+      houseGroup.add(doorPivot);
+      houseDoorPivot = doorPivot;
 
       const windowMaterial = new THREE.MeshStandardMaterial({
         color: 0x8fd9ff,
@@ -3604,6 +3620,10 @@
     if (playerState.group) {
       wasInHouse = isInsideHouse(playerState.group.position);
       everLeftHouse = !wasInHouse;
+    }
+    houseDoorAngle = wasInHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
+    if (houseDoorPivot) {
+      houseDoorPivot.rotation.y = houseDoorAngle;
     }
 
     assignFlowerColorTargets();
@@ -3671,6 +3691,12 @@
         }
       }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
+      if (houseDoorPivot) {
+        const doorTarget = inHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
+        const lerp = Math.min(1, delta * houseDoorSpeed);
+        houseDoorAngle = THREE.MathUtils.lerp(houseDoorAngle, doorTarget, lerp);
+        houseDoorPivot.rotation.y = houseDoorAngle;
+      }
       if (!inHouse && hasWalked) {
         everLeftHouse = true;
       }
