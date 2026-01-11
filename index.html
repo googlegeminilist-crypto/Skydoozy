@@ -40,6 +40,12 @@
         0 0 40px rgba(77, 166, 255, 0.5);
     }
 
+    .title-stack.is-walking h1 {
+      opacity: 0;
+      transform: translateY(-12px);
+      pointer-events: none;
+    }
+
     .title-hint {
       position: absolute;
       top: 100%;
@@ -731,11 +737,15 @@
       if (increased) triggerStreakFlash();
     };
     setStreak(streak);
-    const hintDefaultText = "His home, please enter after walking.";
-    const hintAfterClickText = "Enter his home after walking, click on it to use him the next day.";
-    if (titleHint) {
-      titleHint.textContent = hintDefaultText;
-    }
+    const hintDefaultText = "Can you find the character you can control. If you find him, collect treasures from the rainbow. Hint,its Green!";
+    const hintWalkingText = "His home, please enter after walking.";
+    const hintLockedText = "Keep playing to improve your memory. More words will be coming soon.";
+    const updateTitleHintText = (text) => {
+      if (!titleHint) return;
+      if (titleHint.textContent === text) return;
+      titleHint.textContent = text;
+    };
+    updateTitleHintText(hintDefaultText);
 
     const audioWaveCtx = audioWave ? audioWave.getContext("2d") : null;
     const playlist = bgAudio
@@ -1207,6 +1217,7 @@
         hasWalked = false;
         everLeftHouse = false;
         wasInHouse = false;
+        updateTitleHintText(hintDefaultText);
         try {
           localStorage.removeItem(controlUntilKey);
           localStorage.removeItem(lastMoveKey);
@@ -1224,6 +1235,7 @@
       hasWalked = false;
       everLeftHouse = false;
       wasInHouse = false;
+      updateTitleHintText(hintDefaultText);
       try {
         localStorage.removeItem(controlUntilKey);
         localStorage.removeItem(lastMoveKey);
@@ -1300,15 +1312,14 @@
       } catch (error) {
         // Ignore storage failures.
       }
+      updateTitleHintText(hintLockedText);
       playVoiceCue();
     };
     loadCharacterClick();
     loadControlStatus();
     if (characterClickedToday) {
       sparklesEnabled = true;
-      if (titleHint) {
-        titleHint.textContent = hintAfterClickText;
-      }
+      updateTitleHintText(hintDefaultText);
     }
 
     if (!window.THREE) {
@@ -1549,9 +1560,7 @@
       if (!hits.length) return;
       markCharacterClicked();
       sparklesEnabled = true;
-      if (titleHint) {
-        titleHint.textContent = hintAfterClickText;
-      }
+      updateTitleHintText(hintDefaultText);
     };
     window.addEventListener("keydown", (event) => setMoveKey(event, true));
     window.addEventListener("keyup", (event) => setMoveKey(event, false));
@@ -3736,6 +3745,13 @@
           persistLastMove(nowEpoch);
         }
       }
+      if (controlsBlockedToday) {
+        updateTitleHintText(hintLockedText);
+      } else if (playerMoving) {
+        updateTitleHintText(hintWalkingText);
+      } else {
+        updateTitleHintText(hintDefaultText);
+      }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
       if (playerState.group) {
         playerState.group.visible = !inHouse;
@@ -3768,7 +3784,7 @@
       pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
       updateGroundSparkles(t, delta);
       if (titleStack) {
-        titleStack.classList.toggle("is-hidden", playerMoving);
+        titleStack.classList.toggle("is-walking", playerMoving);
       }
       updateRain(t, delta);
       updateSmoke(t, delta);
