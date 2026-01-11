@@ -350,6 +350,29 @@
       animation-duration: calc(var(--d, 16) * 1s);
     }
 
+    .word-cloud.is-list {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-auto-rows: minmax(22px, auto);
+      gap: 6px 12px;
+      align-content: start;
+      overflow: auto;
+      padding-right: 6px;
+    }
+
+    .word-cloud.is-list li {
+      position: static;
+      transform: none;
+      animation: none;
+      opacity: 1;
+      display: none;
+    }
+
+    .word-cloud.is-list li.is-collected {
+      display: block;
+    }
+
     .blog-panel {
       position: fixed;
       top: 130px;
@@ -867,7 +890,25 @@
     const wordCloudPanel = wordCloud ? wordCloud.closest(".story-panel") : null;
     const orbitDuration = 22;
     const wordSeparation = 60;
+    let wordListMode = false;
+    let collectedWordCount = 0;
+    const enableWordListMode = () => {
+      if (!wordCloud || wordListMode) return;
+      wordListMode = true;
+      wordCloud.classList.add("is-list");
+      words.forEach((word) => word.classList.remove("is-collected"));
+      collectedWordCount = 0;
+    };
+    const collectNextWord = () => {
+      if (!wordCloud) return;
+      enableWordListMode();
+      if (collectedWordCount >= words.length) return;
+      const word = words[collectedWordCount];
+      word.classList.add("is-collected");
+      collectedWordCount += 1;
+    };
     const randomizeWordPosition = (word) => {
+      if (wordListMode) return;
       if (!wordCloud) return;
       const cloudRect = wordCloud.getBoundingClientRect();
       const minScreen = Math.min(cloudRect.width, cloudRect.height);
@@ -927,6 +968,7 @@
       word.style.setProperty("--d", orbitDuration.toFixed(1));
     };
     const layoutWordCloud = () => {
+      if (wordListMode) return;
       if (words.length === 0) return;
       let attempt = 0;
       let hasOverlap = true;
@@ -961,14 +1003,16 @@
         attempt += 1;
       }
     };
-    words.forEach((word, i) => {
+    const applyWordColor = (word, index) => {
       const updateColor = () => {
         const c = nonGreenColor();
         word.style.setProperty("--c", c);
       };
       updateColor();
-      setInterval(updateColor, 2000 + i * 300);
-    });
+      setInterval(updateColor, 2000 + index * 300);
+    };
+    words.forEach((word, i) => applyWordColor(word, i));
+    let wordColorIndex = words.length;
     layoutWordCloud();
     window.addEventListener("resize", layoutWordCloud);
     window.addEventListener("resize", updateScoreBanner);
@@ -998,6 +1042,40 @@
       lastWord = next;
       return next;
     };
+
+    let extraWordsAdded = false;
+    const extraSportsWords = [
+      "Volleyball",
+      "Swimming",
+      "Golf",
+      "Cycling",
+      "Baseball",
+      "Rugby",
+      "Boxing",
+      "Hockey",
+      "Cricket",
+      "Skateboarding"
+    ];
+    const addExtraSportsWords = () => {
+      if (!wordCloud || extraWordsAdded) return;
+      const existing = new Set(words.map((word) => word.textContent.trim().toLowerCase()));
+      const additions = extraSportsWords.filter((word) => !existing.has(word.toLowerCase()));
+      if (!additions.length) return;
+      extraWordsAdded = true;
+      additions.forEach((text) => {
+        const word = document.createElement("li");
+        word.textContent = text;
+        wordCloud.appendChild(word);
+        words.push(word);
+        applyWordColor(word, wordColorIndex++);
+        word.classList.remove("is-collected");
+      });
+      layoutWordCloud();
+      wordBag = [];
+      refillBag();
+    };
+    let characterFound = false;
+    let sparklesEnabled = false;
 
     if (!window.THREE) {
       console.warn("Three.js failed to load. Make sure three.min.js is next to index.html.");
@@ -1050,6 +1128,141 @@
       forward: new THREE.Vector3(),
       right: new THREE.Vector3(),
       direction: new THREE.Vector3()
+    };
+    const makeSparkleTexture = () => {
+      const size = 64;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      const gradient = ctx.createRadialGradient(size * 0.5, size * 0.5, 2, size * 0.5, size * 0.5, size * 0.5);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+      gradient.addColorStop(0.4, "rgba(255, 255, 255, 0.85)");
+      gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(size * 0.5, size * 0.5, size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      const texture = new THREE.CanvasTexture(canvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const sparkleTexture = makeSparkleTexture();
+    const sparkleCount = 36;
+    const sparkleBasePositions = new Float32Array(sparkleCount * 3);
+    const sparklePositions = new Float32Array(sparkleCount * 3);
+    const sparkleBaseColors = new Float32Array(sparkleCount * 3);
+    const sparkleColors = new Float32Array(sparkleCount * 3);
+    const sparklePhases = new Float32Array(sparkleCount);
+    const sparkleActive = new Uint8Array(sparkleCount);
+    const sparkleRespawn = new Float32Array(sparkleCount);
+    const sparkleGeometry = new THREE.BufferGeometry();
+    sparkleGeometry.setAttribute("position", new THREE.BufferAttribute(sparklePositions, 3));
+    sparkleGeometry.setAttribute("color", new THREE.BufferAttribute(sparkleColors, 3));
+    const sparkleMaterial = new THREE.PointsMaterial({
+      map: sparkleTexture,
+      size: 2.6,
+      transparent: true,
+      opacity: 0.85,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const sparklePoints = new THREE.Points(sparkleGeometry, sparkleMaterial);
+    sparklePoints.visible = false;
+    sparklePoints.renderOrder = 5;
+    scene.add(sparklePoints);
+    const sparkleArea = {
+      x: playerState.bounds.x - 18,
+      zMin: playerState.bounds.zMin + 18,
+      zMax: playerState.bounds.zMax - 18
+    };
+    const placeSparkle = (i) => {
+      const i3 = i * 3;
+      sparkleBasePositions[i3] = randomRange(-sparkleArea.x, sparkleArea.x);
+      sparkleBasePositions[i3 + 1] = playerState.groundY + randomRange(0.6, 1.6);
+      sparkleBasePositions[i3 + 2] = randomRange(sparkleArea.zMin, sparkleArea.zMax);
+      const color = new THREE.Color().setHSL(Math.random(), 0.9, 0.6);
+      sparkleBaseColors[i3] = color.r;
+      sparkleBaseColors[i3 + 1] = color.g;
+      sparkleBaseColors[i3 + 2] = color.b;
+      sparklePhases[i] = Math.random() * Math.PI * 2;
+      sparklePositions[i3] = sparkleBasePositions[i3];
+      sparklePositions[i3 + 1] = sparkleBasePositions[i3 + 1];
+      sparklePositions[i3 + 2] = sparkleBasePositions[i3 + 2];
+      sparkleColors[i3] = sparkleBaseColors[i3];
+      sparkleColors[i3 + 1] = sparkleBaseColors[i3 + 1];
+      sparkleColors[i3 + 2] = sparkleBaseColors[i3 + 2];
+      sparkleActive[i] = 1;
+    };
+    for (let i = 0; i < sparkleCount; i++) {
+      placeSparkle(i);
+      sparkleRespawn[i] = 0;
+    }
+    const updateGroundSparkles = (t, delta) => {
+      if (!sparklesEnabled || !playerState.group) {
+        sparklePoints.visible = false;
+        return;
+      }
+      sparklePoints.visible = true;
+      const px = playerState.group.position.x;
+      const pz = playerState.group.position.z;
+      const collectRadius = 10;
+      const collectRadiusSq = collectRadius * collectRadius;
+      let collectedThisFrame = false;
+      for (let i = 0; i < sparkleCount; i++) {
+        const i3 = i * 3;
+        if (!sparkleActive[i]) {
+          if (t >= sparkleRespawn[i]) {
+            placeSparkle(i);
+          } else {
+            sparklePositions[i3] = 0;
+            sparklePositions[i3 + 1] = playerState.groundY - 200;
+            sparklePositions[i3 + 2] = 0;
+            sparkleColors[i3] = 0;
+            sparkleColors[i3 + 1] = 0;
+            sparkleColors[i3 + 2] = 0;
+            continue;
+          }
+        }
+        const dx = sparkleBasePositions[i3] - px;
+        const dz = sparkleBasePositions[i3 + 2] - pz;
+        if (dx * dx + dz * dz < collectRadiusSq) {
+          sparkleActive[i] = 0;
+          sparkleRespawn[i] = t + randomRange(3.5, 6.5);
+          sparklePositions[i3] = 0;
+          sparklePositions[i3 + 1] = playerState.groundY - 200;
+          sparklePositions[i3 + 2] = 0;
+          sparkleColors[i3] = 0;
+          sparkleColors[i3 + 1] = 0;
+          sparkleColors[i3 + 2] = 0;
+          if (!characterFound) {
+            characterFound = true;
+            addExtraSportsWords();
+          }
+          if (!collectedThisFrame) {
+            collectNextWord();
+            collectedThisFrame = true;
+          }
+          continue;
+        }
+        const bob = Math.sin(t * 4.2 + sparklePhases[i]) * 0.25;
+        sparklePositions[i3] = sparkleBasePositions[i3];
+        sparklePositions[i3 + 1] = sparkleBasePositions[i3 + 1] + bob;
+        sparklePositions[i3 + 2] = sparkleBasePositions[i3 + 2];
+        const twinkle = 0.6 + 0.4 * Math.sin(t * 6 + sparklePhases[i]);
+        sparkleColors[i3] = sparkleBaseColors[i3] * twinkle;
+        sparkleColors[i3 + 1] = sparkleBaseColors[i3 + 1] * twinkle;
+        sparkleColors[i3 + 2] = sparkleBaseColors[i3 + 2] * twinkle;
+      }
+      sparkleGeometry.attributes.position.needsUpdate = true;
+      sparkleGeometry.attributes.color.needsUpdate = true;
     };
     const setMoveKey = (event, isDown) => {
       switch (event.key) {
@@ -1458,9 +1671,31 @@
     let scheduleTimeout = null;
     let timeLeft = 0;
     let challengeSeconds = 20;
+    let pauseChallengeTimer = false;
+    const isFirstVisit = (() => {
+      const key = "skydoozy-visited";
+      try {
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, "1");
+          return true;
+        }
+      } catch (error) {
+        return true;
+      }
+      return false;
+    })();
+    let rainAllowed = true;
+    let smokeAllowed = false;
+    let triggerShootingStars = null;
     const levelButtons = document.querySelectorAll(".level-btn");
     const updateTimer = () => {
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
+    };
+    const updateRainAllowed = () => {
+      rainAllowed = isFirstVisit || challengeSeconds === 20;
+    };
+    const updateSmokeAllowed = () => {
+      smokeAllowed = challengeSeconds === 10;
     };
     const setChallengeSeconds = (seconds) => {
       challengeSeconds = seconds;
@@ -1468,6 +1703,8 @@
         timeLeft = challengeSeconds;
         updateTimer();
       }
+      updateRainAllowed();
+      updateSmokeAllowed();
     };
     const updateLevelSelection = () => {
       levelButtons.forEach((btn) => {
@@ -1483,9 +1720,14 @@
           if (!Number.isFinite(seconds)) return;
           setChallengeSeconds(seconds);
           updateLevelSelection();
+          if (btn.dataset.level === "2" && typeof triggerShootingStars === "function") {
+            triggerShootingStars();
+          }
         });
       });
     }
+    updateRainAllowed();
+    updateSmokeAllowed();
 
     const endChallenge = (message) => {
       challengeActive = false;
@@ -1504,6 +1746,7 @@
     };
 
     const tick = () => {
+      if (pauseChallengeTimer) return;
       timeLeft -= 1;
       updateTimer();
       if (timeLeft <= 0) {
@@ -2289,6 +2532,19 @@
       nextToggle: randomRange(8, 16)
     };
     const updateRain = (t, delta) => {
+      if (!rainAllowed) {
+        if (rainState.active) {
+          rainState.active = false;
+          rainPoints.visible = false;
+        }
+        rainState.nextToggle = t + randomRange(8, 16);
+        splashPool.forEach((entry) => {
+          entry.life = 0;
+          entry.sprite.visible = false;
+          entry.sprite.material.opacity = 0;
+        });
+        return;
+      }
       if (t >= rainState.nextToggle) {
         rainState.active = !rainState.active;
         rainState.nextToggle = t + (rainState.active ? randomRange(6, 10) : randomRange(12, 22));
@@ -2324,6 +2580,229 @@
         const scale = 6 + t * 8;
         entry.sprite.scale.set(scale, scale * 0.5, 1);
       });
+    };
+
+    const makeSmokeTexture = () => {
+      const size = 128;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, size, size);
+      for (let i = 0; i < 18; i++) {
+        const x = size * (0.25 + Math.random() * 0.5);
+        const y = size * (0.25 + Math.random() * 0.5);
+        const r = size * (0.18 + Math.random() * 0.22);
+        const alpha = 0.12 + Math.random() * 0.18;
+        const gradient = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+        gradient.addColorStop(0, `rgba(230, 230, 230, ${alpha})`);
+        gradient.addColorStop(0.6, `rgba(160, 160, 160, ${alpha * 0.7})`);
+        gradient.addColorStop(1, "rgba(80, 80, 80, 0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const smokeTexture = makeSmokeTexture();
+    const smokeGroup = new THREE.Group();
+    smokeGroup.renderOrder = 5;
+    jungleGroup.add(smokeGroup);
+    const smokePool = [];
+    const smokeCount = 64;
+    for (let i = 0; i < smokeCount; i++) {
+      const smokeMaterial = new THREE.SpriteMaterial({
+        map: smokeTexture,
+        color: 0xc1c1c1,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(smokeMaterial);
+      sprite.visible = false;
+      smokeGroup.add(sprite);
+      smokePool.push({
+        sprite,
+        life: 0,
+        maxLife: 0,
+        baseScale: 0,
+        velocity: new THREE.Vector3()
+      });
+    }
+    const spawnSmokePuff = () => {
+      for (let i = 0; i < smokePool.length; i++) {
+        const entry = smokePool[i];
+        if (entry.life > 0) continue;
+        entry.maxLife = randomRange(2.6, 4.0);
+        entry.life = entry.maxLife;
+        entry.baseScale = randomRange(14, 22);
+        entry.sprite.position.set(
+          randomRange(-190, 190),
+          playerState.groundY + randomRange(8, 22),
+          randomRange(-210, 90)
+        );
+        entry.velocity.set(randomRange(-0.5, 0.5), randomRange(3, 5.5), randomRange(-0.5, 0.5));
+        entry.sprite.material.opacity = 0;
+        entry.sprite.material.rotation = randomRange(0, Math.PI * 2);
+        entry.sprite.scale.set(entry.baseScale, entry.baseScale * 0.75, 1);
+        entry.sprite.visible = true;
+        break;
+      }
+    };
+    const smokeState = {
+      active: false,
+      nextSpawn: 0
+    };
+    const updateSmoke = (t, delta) => {
+      if (!smokeAllowed) {
+        if (smokeState.active) {
+          smokeState.active = false;
+          smokeState.nextSpawn = t + randomRange(0.8, 1.6);
+        }
+        smokePool.forEach((entry) => {
+          entry.life = 0;
+          entry.sprite.visible = false;
+          entry.sprite.material.opacity = 0;
+        });
+        return;
+      }
+      if (!smokeState.active) {
+        smokeState.active = true;
+        smokeState.nextSpawn = t;
+      }
+      if (t >= smokeState.nextSpawn) {
+        spawnSmokePuff();
+        smokeState.nextSpawn = t + randomRange(0.12, 0.22);
+      }
+      smokePool.forEach((entry) => {
+        if (entry.life <= 0) return;
+        entry.life -= delta;
+        if (entry.life <= 0) {
+          entry.life = 0;
+          entry.sprite.visible = false;
+          entry.sprite.material.opacity = 0;
+          return;
+        }
+        entry.sprite.position.addScaledVector(entry.velocity, delta);
+        const progress = 1 - entry.life / entry.maxLife;
+        const fade = Math.sin(Math.PI * progress);
+        entry.sprite.material.opacity = fade * 0.7;
+        const scale = entry.baseScale * (1 + progress * 1.2);
+        entry.sprite.scale.set(scale, scale * 0.75, 1);
+      });
+    };
+
+    const makeShootingStarTexture = () => {
+      const width = 160;
+      const height = 28;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      const gradient = ctx.createLinearGradient(0, height * 0.5, width, height * 0.5);
+      gradient.addColorStop(0, "rgba(80, 170, 255, 0)");
+      gradient.addColorStop(0.2, "rgba(80, 190, 255, 0.45)");
+      gradient.addColorStop(0.55, "rgba(160, 230, 255, 0.95)");
+      gradient.addColorStop(1, "rgba(80, 170, 255, 0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, height * 0.4, width, height * 0.2);
+      ctx.fillStyle = "rgba(190, 240, 255, 0.95)";
+      ctx.beginPath();
+      ctx.ellipse(width * 0.62, height * 0.5, 5, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const texture = new THREE.CanvasTexture(canvas);
+      if ("colorSpace" in texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+      } else if ("encoding" in texture) {
+        texture.encoding = THREE.sRGBEncoding;
+      }
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const shootingStarTexture = makeShootingStarTexture();
+    const shootingStarGroup = new THREE.Group();
+    shootingStarGroup.renderOrder = 6;
+    scene.add(shootingStarGroup);
+    const shootingStars = [];
+    const shootingPalette = [0x8ad4ff, 0x5fb9ff, 0xb8e7ff, 0x6fd9ff, 0xa2f0ff];
+    const shootingState = {
+      pending: 0,
+      nextSpawn: 0
+    };
+    const spawnShootingStar = () => {
+      const forward = new THREE.Vector3().subVectors(cameraTarget, camera.position).normalize();
+      const right = new THREE.Vector3().crossVectors(forward, worldUp).normalize();
+      const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+      const origin = new THREE.Vector3()
+        .copy(camera.position)
+        .addScaledVector(forward, 180)
+        .addScaledVector(right, randomRange(-260, 260))
+        .addScaledVector(up, randomRange(-140, 140));
+      const dir = new THREE.Vector3()
+        .addScaledVector(right, randomRange(0.7, 1.05) * (Math.random() < 0.5 ? -1 : 1))
+        .addScaledVector(up, randomRange(-0.4, 0.4))
+        .addScaledVector(forward, randomRange(0.2, 0.5))
+        .normalize();
+      const colorHex = shootingPalette[Math.floor(randomRange(0, shootingPalette.length))];
+      const material = new THREE.SpriteMaterial({
+        map: shootingStarTexture,
+        color: colorHex,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(material);
+      const length = randomRange(90, 150);
+      const width = randomRange(3.5, 5.5);
+      sprite.scale.set(length, width, 1);
+      sprite.position.copy(origin);
+      const angle = Math.atan2(dir.dot(up), dir.dot(right));
+      sprite.material.rotation = angle;
+      shootingStarGroup.add(sprite);
+      const maxLife = randomRange(0.7, 1.1);
+      shootingStars.push({
+        sprite,
+        velocity: dir.multiplyScalar(randomRange(260, 380)),
+        life: maxLife,
+        maxLife
+      });
+    };
+    const updateShootingStars = (t, delta) => {
+      if (shootingState.pending > 0 && t >= shootingState.nextSpawn) {
+        spawnShootingStar();
+        shootingState.pending -= 1;
+        shootingState.nextSpawn = t + randomRange(0.06, 0.14);
+      }
+      for (let i = shootingStars.length - 1; i >= 0; i--) {
+        const star = shootingStars[i];
+        star.sprite.position.addScaledVector(star.velocity, delta);
+        star.life -= delta;
+        if (star.life <= 0) {
+          shootingStarGroup.remove(star.sprite);
+          star.sprite.material.dispose();
+          shootingStars.splice(i, 1);
+          continue;
+        }
+        const fade = star.life / star.maxLife;
+        star.sprite.material.opacity = Math.min(1, fade) * 0.95;
+      }
+    };
+    triggerShootingStars = () => {
+      shootingState.pending = Math.floor(randomRange(7, 12));
+      shootingState.nextSpawn = performance.now() * 0.001;
     };
 
     const orbitLightCenter = new THREE.Vector3(0, 35, -40);
@@ -2984,10 +3463,17 @@
         playerState.parts.leafRight.rotation.z = playerState.parts.leafRightBase - leafWave;
         playerState.parts.head.rotation.y = playerMoving ? Math.sin(t * 3.6) * 0.2 : Math.sin(t * 1.6) * 0.12;
       }
+      if (playerMoving && !sparklesEnabled) {
+        sparklesEnabled = true;
+      }
+      pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
+      updateGroundSparkles(t, delta);
       if (titleStack) {
         titleStack.classList.toggle("is-hidden", playerMoving);
       }
       updateRain(t, delta);
+      updateSmoke(t, delta);
+      updateShootingStars(t, delta);
       if (rainbowLights.material) {
         const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
         rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
