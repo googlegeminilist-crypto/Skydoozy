@@ -3520,7 +3520,7 @@
     createPlantWalker();
 
     const buildHouse = () => {
-      const houseSize = { width: 58, height: 34, depth: 44 };
+      const houseSize = { width: 78, height: 46, depth: 58 };
       const houseGroup = new THREE.Group();
       houseGroup.position.set(0, playerState.groundY + houseSize.height * 0.5, -120);
 
@@ -3545,7 +3545,7 @@
       );
       houseGroup.add(base);
 
-      const roofHeight = 14;
+      const roofHeight = 18;
       const roof = new THREE.Mesh(
         new THREE.ConeGeometry(houseSize.width * 0.65, roofHeight, 4),
         roofMaterial
@@ -3562,7 +3562,7 @@
         emissiveIntensity: 0.2
       });
       const door = new THREE.Mesh(new THREE.BoxGeometry(4.6, 7.2, 0.8), doorMaterial);
-      door.position.set(0, -houseSize.height * 0.5 + 6.4, houseSize.depth * 0.5 + 0.8);
+      door.position.set(0, -houseSize.height * 0.5 + 9.5, houseSize.depth * 0.5 + 1);
       houseGroup.add(door);
 
       const windowMaterial = new THREE.MeshStandardMaterial({
@@ -3576,25 +3576,25 @@
       });
       const windowGeo = new THREE.BoxGeometry(3.2, 3.2, 0.6);
       const windowLeft = new THREE.Mesh(windowGeo, windowMaterial);
-      windowLeft.position.set(-13.5, 4.2, houseSize.depth * 0.5 + 0.5);
+      windowLeft.position.set(-18, 6.5, houseSize.depth * 0.5 + 0.6);
       const windowRight = windowLeft.clone();
-      windowRight.position.x = 13.5;
+      windowRight.position.x = 18;
       houseGroup.add(windowLeft, windowRight);
 
-      const chimney = new THREE.Mesh(new THREE.BoxGeometry(4.2, 9.5, 4.2), baseMaterial.clone());
-      chimney.position.set(-houseSize.width * 0.2, houseSize.height * 0.5 + 6, -houseSize.depth * 0.12);
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(5.4, 12.5, 5.4), baseMaterial.clone());
+      chimney.position.set(-houseSize.width * 0.2, houseSize.height * 0.5 + 8, -houseSize.depth * 0.12);
       houseGroup.add(chimney);
 
-      const porchLight = new THREE.PointLight(0xffd1a3, 1.2, 140, 2);
-      porchLight.position.set(0, 3.8, houseSize.depth * 0.6);
+      const porchLight = new THREE.PointLight(0xffd1a3, 1.2, 180, 2);
+      porchLight.position.set(0, 6, houseSize.depth * 0.6);
       houseGroup.add(porchLight);
 
       scene.add(houseGroup);
       houseBounds = {
         x: houseGroup.position.x,
         z: houseGroup.position.z,
-        halfWidth: houseSize.width * 0.43,
-        halfDepth: houseSize.depth * 0.4
+        halfWidth: houseSize.width * 0.45,
+        halfDepth: houseSize.depth * 0.43
       };
 
       return houseGroup;
