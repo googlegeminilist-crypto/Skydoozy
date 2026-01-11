@@ -268,6 +268,14 @@
       cursor: pointer;
     }
 
+    body.show-debug .debug-only {
+      display: inline-flex;
+    }
+
+    .debug-only {
+      display: none;
+    }
+
     .audio-btn:hover {
       border-color: rgba(124, 255, 149, 0.75);
       color: #eafff5;
@@ -584,6 +592,7 @@
   <div class="audio-control" aria-label="Music controls">
     <button class="audio-btn" id="audioToggle" type="button">Music On</button>
     <button class="audio-btn" id="audioSkip" type="button">Skip</button>
+    <button class="audio-btn debug-only" id="debugReset" type="button">Reset Lock</button>
     <canvas class="audio-wave" id="audioWave" width="160" height="36" aria-hidden="true"></canvas>
   </div>
   <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
@@ -652,9 +661,29 @@
     const audioToggle = document.getElementById("audioToggle");
     const audioSkip = document.getElementById("audioSkip");
     const audioWave = document.getElementById("audioWave");
+    const debugReset = document.getElementById("debugReset");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const bgAudio = document.getElementById("bgAudio");
     const voiceAudio = document.getElementById("voiceAudio");
+    const debugOverrideKey = "skydoozy-debug";
+    const debugEnabled = (() => {
+      try {
+        const url = new URL(window.location.href);
+        const isLocal =
+          window.location.protocol === "file:" ||
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1";
+        if (url.searchParams.get("debug") === "1") {
+          localStorage.setItem(debugOverrideKey, "1");
+        }
+        return isLocal || localStorage.getItem(debugOverrideKey) === "1";
+      } catch (error) {
+        return false;
+      }
+    })();
+    if (debugEnabled) {
+      document.body.classList.add("show-debug");
+    }
     let score = 0;
     let streak = 0;
     const streakWords = [
@@ -858,6 +887,11 @@
         bgAudio.src = playlist[trackIndex];
         bgAudio.load();
         playAudio(true);
+      });
+    }
+    if (debugReset) {
+      debugReset.addEventListener("click", () => {
+        resetControlLock(true);
       });
     }
     if (bgAudio) {
@@ -3576,7 +3610,7 @@
       doorPivot.position.set(
         -doorWidth * 0.5,
         -houseSize.height * 0.5 + doorHeight * 0.5,
-        houseSize.depth * 0.5 + doorDepth * 0.5 + 0.1
+        houseSize.depth * 0.5 + doorDepth * 0.5 + 1.2
       );
       houseGroup.add(doorPivot);
       houseDoorPivot = doorPivot;
@@ -3691,6 +3725,9 @@
         }
       }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
+      if (playerState.group) {
+        playerState.group.visible = !inHouse;
+      }
       if (houseDoorPivot) {
         const doorTarget = inHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
         const lerp = Math.min(1, delta * houseDoorSpeed);
