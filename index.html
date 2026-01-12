@@ -625,12 +625,16 @@
     @media (max-width: 900px) {
       body {
         display: block;
-        overflow-y: auto;
-        padding-bottom: calc(120px + env(safe-area-inset-bottom));
+        overflow: hidden;
+        padding-bottom: 0;
       }
 
       .title-stack {
-        margin: calc(110px + env(safe-area-inset-top)) auto 16px;
+        position: fixed;
+        top: calc(78px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        margin: 0;
         text-align: center;
         gap: 12px;
       }
@@ -656,7 +660,7 @@
 
       .score-banner,
       .streak-banner {
-        top: calc(10px + env(safe-area-inset-top));
+        top: calc(8px + env(safe-area-inset-top));
         padding: 6px 12px;
         font-size: 0.8rem;
       }
@@ -686,30 +690,25 @@
 
       .story-panel,
       .blog-panel {
-        position: relative;
-        inset: auto;
-        width: min(92vw, 600px);
-        margin: 12px auto;
-        height: auto;
-        max-height: none;
+        width: min(94vw, 640px);
       }
 
       .story-panel {
-        min-height: 260px;
+        position: fixed;
+        left: 50%;
+        bottom: calc(72px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        height: 46vh;
+        max-height: 46vh;
+        min-height: 220px;
       }
 
       .blog-panel {
-        max-height: none;
+        display: none;
       }
 
       .app-note {
-        position: relative;
-        top: auto;
-        left: auto;
-        transform: none;
-        width: min(92vw, 600px);
-        margin: calc(10px + env(safe-area-inset-top)) auto 0;
-        text-align: center;
+        display: none;
       }
 
       .treasure-complete-banner {
@@ -719,6 +718,12 @@
     }
 
     @media (max-width: 600px) {
+      .story-panel {
+        height: 42vh;
+        max-height: 42vh;
+        bottom: calc(66px + env(safe-area-inset-bottom));
+      }
+
       .matrix-window {
         height: 110px;
       }
@@ -2942,7 +2947,8 @@
       animateCursor();
     }
 
-    const particleCount = 450;
+    const enableMorphParticles = !isMobileClient;
+    const particleCount = enableMorphParticles ? 450 : 0;
     const spread = 260;
     const positions = new Float32Array(particleCount * 3);
     const velocities = new Float32Array(particleCount * 3);
@@ -3087,6 +3093,7 @@
     });
 
     const points = new THREE.Points(geometry, material);
+    points.visible = enableMorphParticles;
     scene.add(points);
 
     const violetGeometry = new THREE.BufferGeometry();
@@ -3101,10 +3108,11 @@
       depthWrite: false
     });
     const violetPoints = new THREE.Points(violetGeometry, violetMaterial);
+    violetPoints.visible = enableMorphParticles;
     scene.add(violetPoints);
 
     // Far layer for extra depth
-    const farCount = 360;
+    const farCount = enableMorphParticles ? 360 : 0;
     const farSpread = 520;
     const farZMin = -farSpread * 2 - 400;
     const farZMax = -farSpread * 0.8;
@@ -3132,6 +3140,7 @@
       depthWrite: false
     });
     const farPoints = new THREE.Points(farGeometry, farMaterial);
+    farPoints.visible = enableMorphParticles;
     scene.add(farPoints);
     const farGlowMaterial = new THREE.PointsMaterial({
       color: "#bfe6ff",
@@ -3143,6 +3152,7 @@
       depthWrite: false
     });
     const farGlowPoints = new THREE.Points(farGeometry, farGlowMaterial);
+    farGlowPoints.visible = enableMorphParticles;
     scene.add(farGlowPoints);
     let farHue = Math.random();
     let nearHue = Math.random();
@@ -3151,7 +3161,7 @@
     let nextDriftHueShift = 0;
 
     // Near "pop-out" layer for stronger emergence toward the viewer
-    const nearCount = 120;
+    const nearCount = enableMorphParticles ? 120 : 0;
     const nearSpread = 180;
     const nearZStart = -800;
     const nearPositions = new Float32Array(nearCount * 3);
@@ -3177,6 +3187,7 @@
       depthWrite: false
     });
     const nearPoints = new THREE.Points(nearGeometry, nearMaterial);
+    nearPoints.visible = enableMorphParticles;
     scene.add(nearPoints);
     const nearGlowMaterial = new THREE.PointsMaterial({
       color: "#dfffff",
@@ -3188,6 +3199,7 @@
       depthWrite: false
     });
     const nearGlowPoints = new THREE.Points(nearGeometry, nearGlowMaterial);
+    nearGlowPoints.visible = enableMorphParticles;
     scene.add(nearGlowPoints);
 
     // Hologram grid to anchor particles in room space
@@ -3200,6 +3212,7 @@
     const grid = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 80, 80), gridMaterial);
     grid.rotation.x = -Math.PI / 2.2;
     grid.position.y = -80;
+    grid.visible = enableMorphParticles;
     scene.add(grid);
     const floorPlane = new THREE.Plane();
     const floorNormal = new THREE.Vector3();
