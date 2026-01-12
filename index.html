@@ -1820,6 +1820,8 @@
     } else {
       if (!isMobileClient) {
         document.body.classList.add("has-3d-cursor");
+      } else if (cursorCanvas) {
+        cursorCanvas.style.display = "none";
       }
       const canvas = document.getElementById("bg");
       const scene = new THREE.Scene();
@@ -2617,7 +2619,7 @@
 
     scheduleTimeout = setTimeout(startChallenge, 9000);
 
-    if (cursorCanvas) {
+    if (!isMobileClient && cursorCanvas) {
       // Jungle-plant cursor built with Three.js
       const cursorScene = new THREE.Scene();
       const cursorCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 30);
@@ -4217,14 +4219,16 @@
       return houseGroup;
     };
 
-    buildHouse();
-    if (playerState.group) {
-      wasInHouse = isInsideHouse(playerState.group.position);
-      everLeftHouse = !wasInHouse;
-    }
-    houseDoorAngle = wasInHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
-    if (houseDoorPivot) {
-      houseDoorPivot.rotation.y = houseDoorAngle;
+    if (!isMobileClient) {
+      buildHouse();
+      if (playerState.group) {
+        wasInHouse = isInsideHouse(playerState.group.position);
+        everLeftHouse = !wasInHouse;
+      }
+      houseDoorAngle = wasInHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
+      if (houseDoorPivot) {
+        houseDoorPivot.rotation.y = houseDoorAngle;
+      }
     }
 
     assignFlowerColorTargets();
