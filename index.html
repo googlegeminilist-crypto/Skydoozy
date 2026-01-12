@@ -686,9 +686,9 @@
     <div class="level-select" aria-label="Difficulty levels">
       <div class="level-select-title">Levels</div>
       <ul class="level-list">
-        <li><button class="level-btn" type="button" data-level="1" data-seconds="20">Level 1</button></li>
-        <li><button class="level-btn" type="button" data-level="2" data-seconds="10">Level 2</button></li>
-        <li><button class="level-btn" type="button" data-level="3" data-seconds="5">Level 3</button></li>
+        <li><button class="level-btn" type="button" data-level="1" data-seconds="50">Level 1</button></li>
+        <li><button class="level-btn" type="button" data-level="2" data-seconds="30">Level 2</button></li>
+        <li><button class="level-btn" type="button" data-level="3" data-seconds="20">Level 3</button></li>
       </ul>
     </div>
     <p>Training your memory is very good for your brain. It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because it's all you think about when you do it, so all your other thoughts fade away.</p>
@@ -1895,26 +1895,52 @@
     };
     const setMoveKey = (event, isDown) => {
       updateControlLockState(Date.now());
-      if (controlsBlockedToday) {
-        event.preventDefault();
+      const isArrowKey = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key);
+      if (!isArrowKey) return;
+      const isTypingTarget = event.target instanceof HTMLElement &&
+        (event.target.tagName === "INPUT" ||
+          event.target.tagName === "TEXTAREA" ||
+          event.target.isContentEditable);
+      if (!isDown) {
+        switch (event.key) {
+          case "ArrowUp":
+            moveState.up = false;
+            break;
+          case "ArrowDown":
+            moveState.down = false;
+            break;
+          case "ArrowLeft":
+            moveState.left = false;
+            break;
+          case "ArrowRight":
+            moveState.right = false;
+            break;
+          default:
+            return;
+        }
         return;
       }
+      if (controlsBlockedToday) {
+        if (!isTypingTarget) event.preventDefault();
+        return;
+      }
+      if (isTypingTarget) return;
       switch (event.key) {
         case "ArrowUp":
-          if (isDown) markControlsUsed();
-          moveState.up = isDown;
+          markControlsUsed();
+          moveState.up = true;
           break;
         case "ArrowDown":
-          if (isDown) markControlsUsed();
-          moveState.down = isDown;
+          markControlsUsed();
+          moveState.down = true;
           break;
         case "ArrowLeft":
-          if (isDown) markControlsUsed();
-          moveState.left = isDown;
+          markControlsUsed();
+          moveState.left = true;
           break;
         case "ArrowRight":
-          if (isDown) markControlsUsed();
-          moveState.right = isDown;
+          markControlsUsed();
+          moveState.right = true;
           break;
         default:
           return;
@@ -2333,7 +2359,7 @@
     let countdownInterval = null;
     let scheduleTimeout = null;
     let timeLeft = 0;
-    let challengeSeconds = 20;
+    let challengeSeconds = 50;
     let pauseChallengeTimer = false;
     const isFirstVisit = (() => {
       const key = "skydoozy-visited";
@@ -2354,10 +2380,10 @@
       challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
     };
     const updateRainAllowed = () => {
-      rainAllowed = isFirstVisit || challengeSeconds === 20;
+      rainAllowed = isFirstVisit || challengeSeconds === 50;
     };
     const updateSmokeAllowed = () => {
-      smokeAllowed = challengeSeconds === 10;
+      smokeAllowed = challengeSeconds === 30;
     };
     const setChallengeSeconds = (seconds) => {
       challengeSeconds = seconds;
