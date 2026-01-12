@@ -631,21 +631,20 @@
 
       .title-stack {
         position: fixed;
-        top: calc(78px + env(safe-area-inset-top));
+        top: calc(70px + env(safe-area-inset-top));
         left: 50%;
         transform: translateX(-50%);
         margin: 0;
         text-align: center;
-        gap: 12px;
+        gap: 8px;
       }
 
       .title-light {
-        width: 48px;
-        height: 48px;
+        display: none;
       }
 
       h1 {
-        font-size: clamp(1.9rem, 7.5vw, 2.8rem);
+        display: none;
       }
 
       .matrix-window {
@@ -659,33 +658,11 @@
       }
 
       .score-banner,
-      .streak-banner {
-        top: calc(8px + env(safe-area-inset-top));
-        padding: 6px 12px;
-        font-size: 0.8rem;
-      }
-
-      .score-banner {
-        left: 50%;
-        transform: translate(-50%, 0);
-      }
-
-      .streak-banner {
-        left: 12px;
-      }
-
-      .audio-control {
-        top: auto;
-        right: 12px;
-        left: 12px;
-        bottom: calc(10px + env(safe-area-inset-bottom));
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 6px;
-      }
-
-      .audio-wave {
-        width: 120px;
+      .streak-banner,
+      .audio-control,
+      .audio-wave,
+      .treasure-complete-banner {
+        display: none;
       }
 
       .story-panel,
@@ -696,39 +673,42 @@
       .story-panel {
         position: fixed;
         left: 50%;
-        bottom: calc(72px + env(safe-area-inset-bottom));
+        bottom: calc(16px + env(safe-area-inset-bottom));
         transform: translateX(-50%);
-        height: 46vh;
-        max-height: 46vh;
+        height: 44vh;
+        max-height: 44vh;
         min-height: 220px;
       }
 
       .blog-panel {
         position: fixed;
-        top: calc(200px + env(safe-area-inset-top));
-        right: 12px;
-        width: min(44vw, 320px);
-        max-height: 30vh;
+        top: calc(190px + env(safe-area-inset-top));
+        right: 10px;
+        width: min(46vw, 320px);
+        max-height: 28vh;
         overflow: auto;
       }
 
+      .blog-panel h2,
+      .blog-panel p,
       .lock-timer {
         display: none;
       }
 
       .app-note {
-        display: none;
-      }
-
-      .treasure-complete-banner {
-        top: calc(86px + env(safe-area-inset-top));
-        font-size: 0.85rem;
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(92vw, 560px);
+        margin: 0;
+        text-align: center;
       }
     }
 
     @media (max-width: 600px) {
       .blog-panel {
-        top: calc(190px + env(safe-area-inset-top));
+        top: calc(176px + env(safe-area-inset-top));
         right: auto;
         left: 50%;
         transform: translateX(-50%);
@@ -737,9 +717,9 @@
       }
 
       .story-panel {
-        height: 42vh;
-        max-height: 42vh;
-        bottom: calc(66px + env(safe-area-inset-bottom));
+        height: 40vh;
+        max-height: 40vh;
+        bottom: calc(12px + env(safe-area-inset-bottom));
       }
 
       .matrix-window {
