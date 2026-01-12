@@ -988,14 +988,6 @@
       words.forEach((word) => word.classList.remove("is-collected"));
       collectedWordCount = 0;
     };
-    const collectNextWord = () => {
-      if (!wordCloud) return;
-      enableWordListMode();
-      if (collectedWordCount >= words.length) return;
-      const word = words[collectedWordCount];
-      word.classList.add("is-collected");
-      collectedWordCount += 1;
-    };
     const randomizeWordPosition = (word) => {
       if (wordListMode) return;
       if (!wordCloud) return;
@@ -1132,38 +1124,50 @@
       return next;
     };
 
-    let extraWordsAdded = false;
-    const extraSportsWords = [
-      "Volleyball",
-      "Swimming",
-      "Golf",
-      "Cycling",
-      "Baseball",
-      "Rugby",
-      "Boxing",
-      "Hockey",
-      "Cricket",
-      "Skateboarding"
+    const treasureWords = [
+      "Cat",
+      "Dog",
+      "Frog",
+      "Rat",
+      "Mice",
+      "Worm"
     ];
-    const addExtraSportsWords = () => {
-      if (!wordCloud || extraWordsAdded) return;
-      const existing = new Set(words.map((word) => word.textContent.trim().toLowerCase()));
-      const additions = extraSportsWords.filter((word) => !existing.has(word.toLowerCase()));
-      if (!additions.length) return;
-      extraWordsAdded = true;
-      additions.forEach((text) => {
-        const word = document.createElement("li");
-        word.textContent = text;
-        wordCloud.appendChild(word);
-        words.push(word);
-        applyWordColor(word, wordColorIndex++);
-        word.classList.remove("is-collected");
-      });
-      layoutWordCloud();
+    let treasureWordBag = [];
+    let lastTreasureWord = null;
+    const refillTreasureBag = () => {
+      treasureWordBag = treasureWords.slice();
+      for (let i = treasureWordBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [treasureWordBag[i], treasureWordBag[j]] = [treasureWordBag[j], treasureWordBag[i]];
+      }
+      if (lastTreasureWord && treasureWordBag.length > 1 && treasureWordBag[0] === lastTreasureWord) {
+        const swapIdx = 1 + Math.floor(Math.random() * (treasureWordBag.length - 1));
+        [treasureWordBag[0], treasureWordBag[swapIdx]] = [treasureWordBag[swapIdx], treasureWordBag[0]];
+      }
+    };
+    const pickTreasureWord = () => {
+      if (treasureWordBag.length === 0) refillTreasureBag();
+      const next = treasureWordBag.pop();
+      if (next) {
+        lastTreasureWord = next;
+      }
+      return next || null;
+    };
+    const collectTreasureWord = () => {
+      if (!wordCloud) return;
+      const next = pickTreasureWord();
+      if (!next) return;
+      const word = document.createElement("li");
+      word.textContent = next;
+      wordCloud.appendChild(word);
+      words.push(word);
+      applyWordColor(word, wordColorIndex++);
+      enableWordListMode();
+      words.forEach((item) => item.classList.add("is-collected"));
+      collectedWordCount = words.length;
       wordBag = [];
       refillBag();
     };
-    let characterFound = false;
     let sparklesEnabled = false;
     const characterClickKey = "skydoozy-character-click";
     const controlUntilKey = "skydoozy-control-until";
@@ -1488,12 +1492,8 @@
           sparkleColors[i3] = 0;
           sparkleColors[i3 + 1] = 0;
           sparkleColors[i3 + 2] = 0;
-          if (!characterFound) {
-            characterFound = true;
-            addExtraSportsWords();
-          }
           if (!collectedThisFrame) {
-            collectNextWord();
+            collectTreasureWord();
             collectedThisFrame = true;
           }
           continue;
