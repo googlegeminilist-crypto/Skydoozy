@@ -405,6 +405,18 @@
       overflow: auto;
     }
 
+    .lock-timer {
+      margin: 8px 0 12px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(193, 160, 255, 0.4);
+      background: rgba(70, 36, 120, 0.35);
+      color: #e9ddff;
+      font-size: 0.85rem;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 10px rgba(193, 160, 255, 0.5);
+    }
+
     .level-select {
       margin: 10px 0 12px;
       padding: 8px 10px;
@@ -635,6 +647,7 @@
   </section>
   <section class="blog-panel">
     <h2>Skydoozy Blog</h2>
+    <div class="lock-timer" id="lockTimer">Next walk: ready</div>
     <div class="level-select" aria-label="Difficulty levels">
       <div class="level-select-title">Levels</div>
       <ul class="level-list">
@@ -672,6 +685,7 @@
     const cursorCanvas = document.getElementById("cursor-canvas");
     const bgAudio = document.getElementById("bgAudio");
     const voiceAudio = document.getElementById("voiceAudio");
+    const lockTimer = document.getElementById("lockTimer");
     const debugOverrideKey = "skydoozy-debug";
     const debugEnabled = (() => {
       try {
@@ -1181,6 +1195,29 @@
       const day = `${now.getDate()}`.padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
+    const formatRemaining = (ms) => {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) {
+        return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+      }
+      return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+    };
+    const updateLockTimer = (nowEpoch) => {
+      if (!lockTimer) return;
+      if (!controlsBlockedToday || !controlsLockedUntil) {
+        lockTimer.textContent = "Next walk: ready";
+        return;
+      }
+      const remaining = controlsLockedUntil - nowEpoch;
+      if (remaining <= 0) {
+        lockTimer.textContent = "Next walk: ready";
+        return;
+      }
+      lockTimer.textContent = `Next walk in ${formatRemaining(remaining)}`;
+    };
     let characterClickedToday = false;
     let controlsBlockedToday = false;
     let controlsSessionActive = false;
@@ -1249,6 +1286,7 @@
       } catch (error) {
         // Ignore storage failures.
       }
+      updateLockTimer(Date.now());
     };
     const loadControlStatus = () => {
       try {
@@ -1280,6 +1318,7 @@
       } catch (error) {
         controlsBlockedToday = false;
       }
+      updateLockTimer(Date.now());
     };
     const markCharacterClicked = () => {
       characterClickedToday = true;
@@ -1318,9 +1357,11 @@
       }
       updateTitleHintText(hintLockedText);
       playVoiceCue();
+      updateLockTimer(Date.now());
     };
     loadCharacterClick();
     loadControlStatus();
+    setInterval(() => updateLockTimer(Date.now()), 1000);
     if (characterClickedToday) {
       sparklesEnabled = true;
       updateTitleHintText(hintDefaultText);
@@ -3699,6 +3740,7 @@
       const nowMs = t * 1000;
       const nowEpoch = Date.now();
       updateControlLockState(nowEpoch);
+      updateLockTimer(nowEpoch);
       const flashT = Math.max(0, (streakFlash.until - nowMs) / streakFlash.duration);
       const flashPulse = flashT > 0 ? 0.5 + 0.5 * Math.sin(t * 14 + flashT * 6) : 0;
       const flashBoost = flashT * (0.6 + 0.4 * flashPulse);
