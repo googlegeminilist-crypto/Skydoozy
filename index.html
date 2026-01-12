@@ -1482,7 +1482,7 @@
     };
 
     const sparkleTexture = makeSparkleTexture();
-    const sparkleCount = 90;
+    const sparkleCount = 120;
     const sparkleBasePositions = new Float32Array(sparkleCount * 3);
     const sparklePositions = new Float32Array(sparkleCount * 3);
     const sparkleBaseColors = new Float32Array(sparkleCount * 3);
@@ -1511,19 +1511,30 @@
       zMin: playerState.bounds.zMin + 18,
       zMax: playerState.bounds.zMax - 18
     };
-    const sparkleClusterChance = 0.45;
-    const sparkleClusterRadius = 18;
+    const sparklePileCount = 9;
+    const sparklePileChance = 0.78;
+    const sparklePileRadius = 16;
+    const sparklePileCenters = [];
+    const buildSparklePiles = () => {
+      sparklePileCenters.length = 0;
+      for (let i = 0; i < sparklePileCount; i++) {
+        sparklePileCenters.push({
+          x: randomRange(-sparkleArea.x, sparkleArea.x),
+          z: randomRange(sparkleArea.zMin, sparkleArea.zMax)
+        });
+      }
+    };
+    buildSparklePiles();
     const placeSparkle = (i) => {
       const i3 = i * 3;
       let x = randomRange(-sparkleArea.x, sparkleArea.x);
       let z = randomRange(sparkleArea.zMin, sparkleArea.zMax);
-      if (i > 0 && Math.random() < sparkleClusterChance) {
-        const anchor = Math.floor(Math.random() * i);
-        const anchorIdx = anchor * 3;
+      if (sparklePileCenters.length && Math.random() < sparklePileChance) {
+        const pile = sparklePileCenters[Math.floor(Math.random() * sparklePileCenters.length)];
         const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * sparkleClusterRadius;
-        x = sparkleBasePositions[anchorIdx] + Math.cos(angle) * radius;
-        z = sparkleBasePositions[anchorIdx + 2] + Math.sin(angle) * radius;
+        const radius = Math.random() * sparklePileRadius;
+        x = pile.x + Math.cos(angle) * radius;
+        z = pile.z + Math.sin(angle) * radius;
         x = THREE.MathUtils.clamp(x, -sparkleArea.x, sparkleArea.x);
         z = THREE.MathUtils.clamp(z, sparkleArea.zMin, sparkleArea.zMax);
       }
@@ -1557,7 +1568,6 @@
       const pz = playerState.group.position.z;
       const collectRadius = 16;
       const collectRadiusSq = collectRadius * collectRadius;
-      let collectedThisFrame = false;
       for (let i = 0; i < sparkleCount; i++) {
         const i3 = i * 3;
         if (!sparkleActive[i]) {
@@ -1584,10 +1594,7 @@
           sparkleColors[i3] = 0;
           sparkleColors[i3 + 1] = 0;
           sparkleColors[i3 + 2] = 0;
-          if (!collectedThisFrame) {
-            collectTreasureWord();
-            collectedThisFrame = true;
-          }
+          collectTreasureWord();
           continue;
         }
         const bob = Math.sin(t * 4.2 + sparklePhases[i]) * 0.25;
