@@ -588,6 +588,39 @@
       z-index: 0;
       pointer-events: none;
     }
+
+    #fireworks {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    .treasure-complete-banner {
+      position: fixed;
+      top: 110px;
+      left: 50%;
+      transform: translate(-50%, -10px) scale(0.98);
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(12, 20, 32, 0.8);
+      border: 1px solid rgba(255, 214, 112, 0.7);
+      color: #ffe9b5;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-shadow: 0 0 12px rgba(255, 214, 112, 0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 7;
+    }
+
+    .treasure-complete-banner.is-visible {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1);
+    }
   </style>
 </head>
   <!-- Google tag (gtag.js) -->
@@ -617,6 +650,7 @@
   <audio id="voiceAudio" src="ElevenLabs_2026-01-11T02_53_58_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
+  <canvas id="fireworks"></canvas>
   <div class="title-stack">
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
@@ -628,6 +662,7 @@
     <h1>Skydoozy</h1>
     <div class="title-hint">Can you find the character you can control. If you find him, collect treasures from the rainbow. Hint,its Green!</div>
   </div>
+  <div class="treasure-complete-banner" id="treasureCompleteBanner">You have found all of the words</div>
   <section class="story-panel">
     <div class="story-hint">
       <div class="matrix-hint">
@@ -683,9 +718,11 @@
     const audioWave = document.getElementById("audioWave");
     const debugReset = document.getElementById("debugReset");
     const cursorCanvas = document.getElementById("cursor-canvas");
+    const fireworksCanvas = document.getElementById("fireworks");
     const bgAudio = document.getElementById("bgAudio");
     const voiceAudio = document.getElementById("voiceAudio");
     const lockTimer = document.getElementById("lockTimer");
+    const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
     const debugOverrideKey = "skydoozy-debug";
     const debugEnabled = (() => {
       try {
@@ -922,6 +959,9 @@
     if (debugReset) {
       debugReset.addEventListener("click", () => {
         resetControlLock(true);
+        if (debugEnabled) {
+          resetTreasureList();
+        }
       });
     }
     if (bgAudio) {
@@ -987,7 +1027,112 @@
       return choices[Math.floor(Math.random() * choices.length)];
     };
 
+    const fireworksCtx = fireworksCanvas ? fireworksCanvas.getContext("2d") : null;
+    let fireworkWidth = 0;
+    let fireworkHeight = 0;
+    const fireworkState = {
+      rockets: [],
+      particles: [],
+      nextLaunchAt: 0,
+      activeUntil: 0
+    };
+    const resizeFireworks = () => {
+      if (!fireworksCanvas || !fireworksCtx) return;
+      const rect = fireworksCanvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      fireworksCanvas.width = rect.width * dpr;
+      fireworksCanvas.height = rect.height * dpr;
+      fireworksCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      fireworkWidth = rect.width;
+      fireworkHeight = rect.height;
+    };
+    const launchFirework = () => {
+      if (!fireworkWidth || !fireworkHeight) return;
+      fireworkState.rockets.push({
+        x: randomRange(fireworkWidth * 0.2, fireworkWidth * 0.8),
+        y: fireworkHeight + 20,
+        vx: randomRange(-40, 40),
+        vy: randomRange(-520, -380),
+        hue: randomRange(0, 360),
+        age: 0,
+        fuse: randomRange(0.9, 1.4)
+      });
+    };
+    const explodeFirework = (rocket) => {
+      const count = 32 + Math.floor(Math.random() * 20);
+      for (let i = 0; i < count; i++) {
+        const angle = randomRange(0, Math.PI * 2);
+        const speed = randomRange(90, 240);
+        fireworkState.particles.push({
+          x: rocket.x,
+          y: rocket.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0,
+          ttl: randomRange(1.2, 1.8),
+          hue: rocket.hue + randomRange(-20, 20)
+        });
+      }
+    };
+    const triggerFireworks = (durationMs = 4800) => {
+      if (!fireworksCtx) return;
+      fireworkState.activeUntil = Math.max(fireworkState.activeUntil, Date.now() + durationMs);
+      fireworkState.nextLaunchAt = 0;
+    };
+    const updateFireworks = (delta, nowEpoch) => {
+      if (!fireworksCtx) return;
+      const active = nowEpoch < fireworkState.activeUntil;
+      if (!active && fireworkState.rockets.length === 0 && fireworkState.particles.length === 0) {
+        fireworksCtx.clearRect(0, 0, fireworkWidth, fireworkHeight);
+        return;
+      }
+      fireworksCtx.clearRect(0, 0, fireworkWidth, fireworkHeight);
+      if (active && nowEpoch >= fireworkState.nextLaunchAt) {
+        launchFirework();
+        fireworkState.nextLaunchAt = nowEpoch + randomRange(280, 520);
+      }
+      const gravity = 420;
+      for (let i = fireworkState.rockets.length - 1; i >= 0; i--) {
+        const rocket = fireworkState.rockets[i];
+        rocket.age += delta;
+        rocket.vy += gravity * delta;
+        rocket.x += rocket.vx * delta;
+        rocket.y += rocket.vy * delta;
+        fireworksCtx.strokeStyle = `hsla(${rocket.hue}, 90%, 70%, 0.9)`;
+        fireworksCtx.lineWidth = 2;
+        fireworksCtx.beginPath();
+        fireworksCtx.moveTo(rocket.x, rocket.y + 6);
+        fireworksCtx.lineTo(rocket.x, rocket.y - 10);
+        fireworksCtx.stroke();
+        if (rocket.age >= rocket.fuse || rocket.vy > -60) {
+          explodeFirework(rocket);
+          fireworkState.rockets.splice(i, 1);
+        }
+      }
+      fireworksCtx.globalCompositeOperation = "lighter";
+      for (let i = fireworkState.particles.length - 1; i >= 0; i--) {
+        const particle = fireworkState.particles[i];
+        particle.life += delta;
+        if (particle.life >= particle.ttl) {
+          fireworkState.particles.splice(i, 1);
+          continue;
+        }
+        particle.vy += gravity * 0.35 * delta;
+        particle.vx *= 0.985;
+        particle.vy *= 0.985;
+        particle.x += particle.vx * delta;
+        particle.y += particle.vy * delta;
+        const alpha = 1 - particle.life / particle.ttl;
+        fireworksCtx.fillStyle = `hsla(${particle.hue}, 95%, 68%, ${alpha})`;
+        fireworksCtx.beginPath();
+        fireworksCtx.arc(particle.x, particle.y, 2.2, 0, Math.PI * 2);
+        fireworksCtx.fill();
+      }
+      fireworksCtx.globalCompositeOperation = "source-over";
+    };
+
     const words = Array.from(document.querySelectorAll(".word-cloud li"));
+    const baseWordCount = words.length;
     const wordCloud = document.querySelector(".word-cloud");
     const matrixWindow = document.querySelector(".matrix-window");
     const wordCloudPanel = wordCloud ? wordCloud.closest(".story-panel") : null;
@@ -1110,10 +1255,12 @@
     let wordColorIndex = words.length;
     layoutWordCloud();
     window.addEventListener("resize", layoutWordCloud);
+    window.addEventListener("resize", resizeFireworks);
     window.addEventListener("resize", updateScoreBanner);
     requestAnimationFrame(updateScoreBanner);
     window.addEventListener("load", layoutWordCloud);
     setTimeout(layoutWordCloud, 200);
+    resizeFireworks();
 
     let wordBag = [];
     let lastWord = null;
@@ -1138,18 +1285,100 @@
       return next;
     };
 
-    const treasureWords = [
-      "Cat",
-      "Dog",
-      "Frog",
-      "Rat",
-      "Mice",
-      "Worm"
+    const treasureWordSets = [
+      ["Cat", "Dog", "Frog", "Rat", "Mice", "Worm"],
+      ["Red", "Blue", "Green", "Yellow", "Orange"]
     ];
+    const treasureDayKey = "skydoozy-treasure-day";
+    const treasureDayIndexKey = "skydoozy-treasure-day-index";
+    let treasureDayIndex = 1;
+    let treasureWords = [];
     let treasureWordBag = [];
     let lastTreasureWord = null;
+    const normalizeTreasureWord = (word) => word.trim().toLowerCase();
+    const treasureCompleteKey = "skydoozy-treasure-complete";
+    let treasureCompleteShown = false;
+    let treasureCompleteTimeout = 0;
+    const countCollectedForSet = (list) => list.reduce(
+      (count, word) => count + (collectedTreasureSet.has(normalizeTreasureWord(word)) ? 1 : 0),
+      0
+    );
+    const isTreasureSetComplete = () => (
+      treasureWords.length > 0 && countCollectedForSet(treasureWords) >= treasureWords.length
+    );
+    const showTreasureComplete = () => {
+      if (treasureCompleteShown) return;
+      treasureCompleteShown = true;
+      try {
+        localStorage.setItem(treasureCompleteKey, getTodayKey());
+      } catch (error) {
+        // Ignore storage failures.
+      }
+      if (treasureCompleteBanner) {
+        treasureCompleteBanner.classList.add("is-visible");
+        if (treasureCompleteTimeout) {
+          clearTimeout(treasureCompleteTimeout);
+        }
+        treasureCompleteTimeout = setTimeout(() => {
+          treasureCompleteBanner.classList.remove("is-visible");
+        }, 6000);
+      }
+      triggerFireworks(5200);
+    };
+    const resetTreasureComplete = () => {
+      treasureCompleteShown = false;
+      if (treasureCompleteTimeout) {
+        clearTimeout(treasureCompleteTimeout);
+        treasureCompleteTimeout = 0;
+      }
+      if (treasureCompleteBanner) {
+        treasureCompleteBanner.classList.remove("is-visible");
+      }
+      try {
+        localStorage.removeItem(treasureCompleteKey);
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    };
+    const setTreasureWordsForDay = (dayIndex) => {
+      const safeIndex = Math.max(1, dayIndex);
+      const list = treasureWordSets[safeIndex - 1] || treasureWordSets[treasureWordSets.length - 1];
+      treasureWords = list.slice();
+      treasureWordBag = [];
+      lastTreasureWord = null;
+    };
+    const loadTreasureDay = () => {
+      const todayKey = getTodayKey();
+      let isNewDay = false;
+      try {
+        const storedDay = localStorage.getItem(treasureDayKey);
+        const storedIndex = Number(localStorage.getItem(treasureDayIndexKey));
+        if (storedDay && storedDay === todayKey && Number.isFinite(storedIndex) && storedIndex > 0) {
+          treasureDayIndex = storedIndex;
+        } else {
+          isNewDay = true;
+          treasureDayIndex = Number.isFinite(storedIndex) && storedIndex > 0 ? storedIndex + 1 : 1;
+          localStorage.setItem(treasureDayKey, todayKey);
+          localStorage.setItem(treasureDayIndexKey, `${treasureDayIndex}`);
+        }
+        const storedComplete = localStorage.getItem(treasureCompleteKey);
+        treasureCompleteShown = storedComplete === todayKey;
+        if (!treasureCompleteShown && storedComplete) {
+          localStorage.removeItem(treasureCompleteKey);
+        }
+      } catch (error) {
+        treasureDayIndex = 1;
+        treasureCompleteShown = false;
+      }
+      if (isNewDay) {
+        resetTreasureComplete();
+      }
+      setTreasureWordsForDay(treasureDayIndex);
+    };
     const refillTreasureBag = () => {
-      treasureWordBag = treasureWords.slice();
+      treasureWordBag = treasureWords.filter(
+        (word) => !collectedTreasureSet.has(normalizeTreasureWord(word))
+      );
       for (let i = treasureWordBag.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [treasureWordBag[i], treasureWordBag[j]] = [treasureWordBag[j], treasureWordBag[i]];
@@ -1161,6 +1390,7 @@
     };
     const pickTreasureWord = () => {
       if (treasureWordBag.length === 0) refillTreasureBag();
+      if (treasureWordBag.length === 0) return null;
       const next = treasureWordBag.pop();
       if (next) {
         lastTreasureWord = next;
@@ -1170,10 +1400,19 @@
     const collectTreasureWord = () => {
       if (!wordCloud) return;
       const next = pickTreasureWord();
-      if (!next) return;
+      if (!next) {
+        showTreasureComplete();
+        return;
+      }
+      const normalized = normalizeTreasureWord(next);
+      if (collectedTreasureSet.has(normalized)) return;
       appendWordToCloud(next);
+      collectedTreasureSet.add(normalized);
       collectedTreasureWords.push(next);
       saveTreasureWords();
+      if (isTreasureSetComplete()) {
+        showTreasureComplete();
+      }
       enableWordListMode();
       words.forEach((item) => item.classList.add("is-collected"));
       collectedWordCount = words.length;
@@ -1182,6 +1421,37 @@
     };
     const treasureWordsKey = "skydoozy-treasure-words";
     let collectedTreasureWords = [];
+    let collectedTreasureSet = new Set();
+    const syncTreasureSet = () => {
+      collectedTreasureSet = new Set(collectedTreasureWords.map(normalizeTreasureWord));
+    };
+    const resetTreasureList = () => {
+      collectedTreasureWords = [];
+      collectedTreasureSet = new Set();
+      resetTreasureComplete();
+      treasureWordBag = [];
+      lastTreasureWord = null;
+      try {
+        localStorage.removeItem(treasureWordsKey);
+      } catch (error) {
+        // Ignore storage failures.
+      }
+      if (!wordCloud) return;
+      while (words.length > baseWordCount) {
+        const word = words.pop();
+        if (word && word.parentNode) {
+          word.parentNode.removeChild(word);
+        }
+      }
+      wordListMode = false;
+      wordCloud.classList.remove("is-list");
+      words.forEach((item) => item.classList.remove("is-collected"));
+      collectedWordCount = 0;
+      wordColorIndex = words.length;
+      wordBag = [];
+      refillBag();
+      layoutWordCloud();
+    };
     const appendWordToCloud = (text) => {
       if (!wordCloud) return;
       const word = document.createElement("li");
@@ -1196,13 +1466,23 @@
       try {
         const stored = JSON.parse(localStorage.getItem(treasureWordsKey) || "[]");
         if (Array.isArray(stored)) {
-          collectedTreasureWords = stored.filter(
-            (item) => typeof item === "string" && item.trim().length > 0
-          );
+          const unique = [];
+          const seen = new Set();
+          stored.forEach((item) => {
+            if (typeof item !== "string") return;
+            const trimmed = item.trim();
+            if (!trimmed) return;
+            const normalized = normalizeTreasureWord(trimmed);
+            if (seen.has(normalized)) return;
+            seen.add(normalized);
+            unique.push(trimmed);
+          });
+          collectedTreasureWords = unique;
         }
       } catch (error) {
         collectedTreasureWords = [];
       }
+      syncTreasureSet();
       if (!collectedTreasureWords.length) return;
       collectedTreasureWords.forEach((text) => appendWordToCloud(text));
       enableWordListMode();
@@ -1397,6 +1677,7 @@
     };
     loadCharacterClick();
     loadControlStatus();
+    loadTreasureDay();
     loadTreasureWords();
     setInterval(() => updateLockTimer(Date.now()), 1000);
     if (characterClickedToday) {
@@ -1511,33 +1792,32 @@
       zMin: playerState.bounds.zMin + 18,
       zMax: playerState.bounds.zMax - 18
     };
-    const sparklePileCount = 9;
-    const sparklePileChance = 0.78;
-    const sparklePileRadius = 16;
-    const sparklePileCenters = [];
-    const buildSparklePiles = () => {
-      sparklePileCenters.length = 0;
-      for (let i = 0; i < sparklePileCount; i++) {
-        sparklePileCenters.push({
-          x: randomRange(-sparkleArea.x, sparkleArea.x),
-          z: randomRange(sparkleArea.zMin, sparkleArea.zMax)
-        });
-      }
-    };
-    buildSparklePiles();
+    const sparkleMinSeparation = 26;
+    const sparklePlacementTries = 18;
     const placeSparkle = (i) => {
       const i3 = i * 3;
-      let x = randomRange(-sparkleArea.x, sparkleArea.x);
-      let z = randomRange(sparkleArea.zMin, sparkleArea.zMax);
-      if (sparklePileCenters.length && Math.random() < sparklePileChance) {
-        const pile = sparklePileCenters[Math.floor(Math.random() * sparklePileCenters.length)];
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * sparklePileRadius;
-        x = pile.x + Math.cos(angle) * radius;
-        z = pile.z + Math.sin(angle) * radius;
-        x = THREE.MathUtils.clamp(x, -sparkleArea.x, sparkleArea.x);
-        z = THREE.MathUtils.clamp(z, sparkleArea.zMin, sparkleArea.zMax);
-      }
+      let x = 0;
+      let z = 0;
+      let tries = 0;
+      const minSepSq = sparkleMinSeparation * sparkleMinSeparation;
+      do {
+        x = randomRange(-sparkleArea.x, sparkleArea.x);
+        z = randomRange(sparkleArea.zMin, sparkleArea.zMax);
+        tries += 1;
+      } while (
+        tries < sparklePlacementTries &&
+        (() => {
+          for (let j = 0; j < i; j++) {
+            const j3 = j * 3;
+            const dx = sparkleBasePositions[j3] - x;
+            const dz = sparkleBasePositions[j3 + 2] - z;
+            if (dx * dx + dz * dz < minSepSq) {
+              return true;
+            }
+          }
+          return false;
+        })()
+      );
       sparkleBasePositions[i3] = x;
       sparkleBasePositions[i3 + 1] = playerState.groundY + randomRange(0.6, 1.6);
       sparkleBasePositions[i3 + 2] = z;
@@ -1564,6 +1844,7 @@
         return;
       }
       sparklePoints.visible = true;
+      let collectedThisFrame = false;
       const px = playerState.group.position.x;
       const pz = playerState.group.position.z;
       const collectRadius = 16;
@@ -1594,7 +1875,10 @@
           sparkleColors[i3] = 0;
           sparkleColors[i3 + 1] = 0;
           sparkleColors[i3 + 2] = 0;
-          collectTreasureWord();
+          if (!collectedThisFrame) {
+            collectTreasureWord();
+            collectedThisFrame = true;
+          }
           continue;
         }
         const bob = Math.sin(t * 4.2 + sparklePhases[i]) * 0.25;
@@ -3789,6 +4073,7 @@
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       updateRainbow();
+      resizeFireworks();
     };
 
     const animate = () => {
@@ -4118,6 +4403,7 @@
         });
       });
 
+      updateFireworks(delta, nowEpoch);
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     };
