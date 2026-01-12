@@ -1171,16 +1171,52 @@
       if (!wordCloud) return;
       const next = pickTreasureWord();
       if (!next) return;
-      const word = document.createElement("li");
-      word.textContent = next;
-      wordCloud.appendChild(word);
-      words.push(word);
-      applyWordColor(word, wordColorIndex++);
+      appendWordToCloud(next);
+      collectedTreasureWords.push(next);
+      saveTreasureWords();
       enableWordListMode();
       words.forEach((item) => item.classList.add("is-collected"));
       collectedWordCount = words.length;
       wordBag = [];
       refillBag();
+    };
+    const treasureWordsKey = "skydoozy-treasure-words";
+    let collectedTreasureWords = [];
+    const appendWordToCloud = (text) => {
+      if (!wordCloud) return;
+      const word = document.createElement("li");
+      word.textContent = text;
+      wordCloud.appendChild(word);
+      words.push(word);
+      applyWordColor(word, wordColorIndex++);
+      word.classList.remove("is-collected");
+    };
+    const loadTreasureWords = () => {
+      if (!wordCloud) return;
+      try {
+        const stored = JSON.parse(localStorage.getItem(treasureWordsKey) || "[]");
+        if (Array.isArray(stored)) {
+          collectedTreasureWords = stored.filter(
+            (item) => typeof item === "string" && item.trim().length > 0
+          );
+        }
+      } catch (error) {
+        collectedTreasureWords = [];
+      }
+      if (!collectedTreasureWords.length) return;
+      collectedTreasureWords.forEach((text) => appendWordToCloud(text));
+      enableWordListMode();
+      words.forEach((item) => item.classList.add("is-collected"));
+      collectedWordCount = words.length;
+      wordBag = [];
+      refillBag();
+    };
+    const saveTreasureWords = () => {
+      try {
+        localStorage.setItem(treasureWordsKey, JSON.stringify(collectedTreasureWords));
+      } catch (error) {
+        // Ignore storage failures.
+      }
     };
     let sparklesEnabled = false;
     const characterClickKey = "skydoozy-character-click";
@@ -1361,6 +1397,7 @@
     };
     loadCharacterClick();
     loadControlStatus();
+    loadTreasureWords();
     setInterval(() => updateLockTimer(Date.now()), 1000);
     if (characterClickedToday) {
       sparklesEnabled = true;
