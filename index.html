@@ -621,6 +621,135 @@
       opacity: 1;
       transform: translate(-50%, 0) scale(1);
     }
+
+    @media (max-width: 900px) {
+      body {
+        display: block;
+        overflow-y: auto;
+        padding-bottom: calc(120px + env(safe-area-inset-bottom));
+      }
+
+      .title-stack {
+        margin: calc(110px + env(safe-area-inset-top)) auto 16px;
+        text-align: center;
+        gap: 12px;
+      }
+
+      .title-light {
+        width: 48px;
+        height: 48px;
+      }
+
+      h1 {
+        font-size: clamp(1.9rem, 7.5vw, 2.8rem);
+      }
+
+      .matrix-window {
+        width: min(92vw, 560px);
+        height: 120px;
+      }
+
+      .title-hint {
+        font-size: clamp(0.9rem, 3.2vw, 1.05rem);
+      }
+
+      .score-banner,
+      .streak-banner {
+        top: calc(10px + env(safe-area-inset-top));
+        padding: 6px 12px;
+        font-size: 0.8rem;
+      }
+
+      .score-banner {
+        left: 50%;
+        transform: translate(-50%, 0);
+      }
+
+      .streak-banner {
+        left: 12px;
+      }
+
+      .audio-control {
+        top: auto;
+        right: 12px;
+        left: 12px;
+        bottom: calc(10px + env(safe-area-inset-bottom));
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+      }
+
+      .audio-wave {
+        width: 120px;
+      }
+
+      .story-panel,
+      .blog-panel {
+        position: relative;
+        inset: auto;
+        width: min(92vw, 600px);
+        margin: 12px auto;
+        height: auto;
+        max-height: none;
+      }
+
+      .story-panel {
+        min-height: 260px;
+      }
+
+      .blog-panel {
+        max-height: none;
+      }
+
+      .app-note {
+        position: relative;
+        top: auto;
+        left: auto;
+        transform: none;
+        width: min(92vw, 600px);
+        margin: calc(10px + env(safe-area-inset-top)) auto 0;
+        text-align: center;
+      }
+
+      .treasure-complete-banner {
+        top: calc(86px + env(safe-area-inset-top));
+        font-size: 0.85rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .matrix-window {
+        height: 110px;
+      }
+
+      .matrix-hint {
+        font-size: 0.8rem;
+      }
+
+      .matrix-microcopy {
+        font-size: 0.7rem;
+      }
+
+      .audio-wave {
+        display: none;
+      }
+
+      .score-banner,
+      .streak-banner {
+        font-size: 0.75rem;
+      }
+    }
+
+    @media (pointer: coarse) {
+      .audio-btn,
+      .level-btn {
+        padding: 8px 12px;
+      }
+
+      .matrix-input {
+        font-size: 1rem;
+      }
+    }
   </style>
 </head>
   <!-- Google tag (gtag.js) -->
