@@ -704,7 +704,12 @@
       }
 
       .blog-panel {
-        display: none;
+        position: fixed;
+        top: calc(200px + env(safe-area-inset-top));
+        right: 12px;
+        width: min(44vw, 320px);
+        max-height: 30vh;
+        overflow: auto;
       }
 
       .lock-timer {
@@ -722,6 +727,15 @@
     }
 
     @media (max-width: 600px) {
+      .blog-panel {
+        top: calc(190px + env(safe-area-inset-top));
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(92vw, 360px);
+        max-height: 24vh;
+      }
+
       .story-panel {
         height: 42vh;
         max-height: 42vh;
