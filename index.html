@@ -780,6 +780,7 @@
   </div>
   <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
   <audio id="voiceAudio" src="ElevenLabs_2026-01-11T02_53_58_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
+  <audio id="introAudio" src="ElevenLabs_2026-01-13T19_39_49_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
   <div class="intro-overlay" id="introOverlay" aria-hidden="false">
     <video class="intro-video" id="introVideo" playsinline autoplay preload="auto">
       <source src="Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4" type="video/mp4" />
@@ -860,6 +861,7 @@
     const voiceAudio = document.getElementById("voiceAudio");
     const introOverlay = document.getElementById("introOverlay");
     const introVideo = document.getElementById("introVideo");
+    const introAudio = document.getElementById("introAudio");
     const lockTimer = document.getElementById("lockTimer");
     const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
     const debugOverrideKey = "skydoozy-debug";
@@ -895,14 +897,44 @@
     };
     if (introOverlay && introVideo) {
       showIntro();
-      const playAttempt = introVideo.play();
-      if (playAttempt && typeof playAttempt.catch === "function") {
-        playAttempt.catch(() => {
+      let introVideoDone = false;
+      let introAudioDone = !introAudio;
+      const hideWhenDone = () => {
+        if (introVideoDone && introAudioDone) hideIntro();
+      };
+      const playVideoAttempt = introVideo.play();
+      if (playVideoAttempt && typeof playVideoAttempt.catch === "function") {
+        playVideoAttempt.catch(() => {
           introVideo.controls = true;
         });
       }
-      introVideo.addEventListener("ended", hideIntro);
-      introVideo.addEventListener("error", hideIntro);
+      if (introAudio) {
+        try {
+          introAudio.currentTime = 0;
+        } catch (error) {}
+        const playAudioAttempt = introAudio.play();
+        if (playAudioAttempt && typeof playAudioAttempt.catch === "function") {
+          playAudioAttempt.catch(() => {
+            introAudio.controls = true;
+          });
+        }
+        introAudio.addEventListener("ended", () => {
+          introAudioDone = true;
+          hideWhenDone();
+        });
+        introAudio.addEventListener("error", () => {
+          introAudioDone = true;
+          hideWhenDone();
+        });
+      }
+      introVideo.addEventListener("ended", () => {
+        introVideoDone = true;
+        hideWhenDone();
+      });
+      introVideo.addEventListener("error", () => {
+        introVideoDone = true;
+        hideWhenDone();
+      });
     }
     let score = 0;
     let streak = 0;
