@@ -707,13 +707,14 @@
       }
 
       .app-note {
-        position: relative;
-        top: auto;
-        left: auto;
-        transform: none;
+        position: fixed;
+        top: calc(8px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
         width: min(92vw, 560px);
-        margin: 0 auto 12px;
+        margin: 0;
         text-align: center;
+        z-index: 8;
       }
     }
 
