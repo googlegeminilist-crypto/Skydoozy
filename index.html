@@ -673,6 +673,7 @@
       .story-panel {
         position: fixed;
         left: 50%;
+        top: auto;
         bottom: calc(16px + env(safe-area-inset-bottom) + 18vh + 12px);
         transform: translateX(-50%);
         height: 44vh;
@@ -682,6 +683,7 @@
 
       .blog-panel {
         position: fixed;
+        top: auto;
         bottom: calc(16px + env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
@@ -710,6 +712,7 @@
 
     @media (max-width: 600px) {
       .blog-panel {
+        top: auto;
         bottom: calc(12px + env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
@@ -719,6 +722,7 @@
       }
 
       .story-panel {
+        top: auto;
         height: 38vh;
         max-height: 38vh;
         bottom: calc(12px + env(safe-area-inset-bottom) + 22vh + 10px);
