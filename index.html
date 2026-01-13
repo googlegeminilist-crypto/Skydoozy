@@ -664,12 +664,29 @@
         display: none;
       }
 
-      .score-banner,
-      .streak-banner,
       .audio-control,
       .audio-wave,
-      .treasure-complete-banner {
+      .treasure-complete-banner,
+      .level-bar {
         display: none;
+      }
+
+      .score-banner,
+      .streak-banner {
+        display: block;
+        position: fixed;
+        top: calc(52px + env(safe-area-inset-top));
+        padding: 6px 10px;
+        font-size: 0.78rem;
+      }
+
+      .score-banner {
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .streak-banner {
+        left: 12px;
       }
 
       .story-panel,
