@@ -888,11 +888,15 @@
       document.body.classList.add("show-debug");
     }
     if (isMobileClient) {
-      window.addEventListener("scroll", () => {
-        if (!document.body.classList.contains("mobile-scrolled")) {
+      const onMobileScroll = () => {
+        if (window.scrollY > 4) {
           document.body.classList.add("mobile-scrolled");
+        } else {
+          document.body.classList.remove("mobile-scrolled");
         }
-      }, { passive: true });
+      };
+      window.addEventListener("scroll", onMobileScroll, { passive: true });
+      onMobileScroll();
     }
     let score = 0;
     let streak = 0;
