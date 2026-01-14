@@ -835,6 +835,7 @@
     <p>Most importantly, I hope you have fun on Skydoozy!</p>
   </section>
   <script src="three.min.js"></script>
+  <script src="GLTFLoader.js"></script>
   <script>
 
     const palette = [
@@ -4274,7 +4275,76 @@
       return houseGroup;
     };
 
-    buildHouse();
+    const loadHauntedHouse = () => {
+      if (!THREE.GLTFLoader) {
+        console.warn("GLTFLoader missing. Falling back to built-in house.");
+        buildHouse();
+        return;
+      }
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        "Meshy_AI_Haunted_Victorian_Man_0114004608_texture.glb",
+        (gltf) => {
+          const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!model) {
+            console.warn("GLB loaded without a scene. Using fallback house.");
+            buildHouse();
+            return;
+          }
+          model.traverse((child) => {
+            if (!child.isMesh) return;
+            child.castShadow = false;
+            child.receiveShadow = false;
+            if (child.material) {
+              child.material.side = THREE.FrontSide;
+            }
+          });
+
+          const targetHeight = 90;
+          const tempBox = new THREE.Box3().setFromObject(model);
+          const tempSize = new THREE.Vector3();
+          tempBox.getSize(tempSize);
+          if (tempSize.y > 0) {
+            const scale = targetHeight / tempSize.y;
+            model.scale.setScalar(scale);
+          }
+
+          model.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = new THREE.Vector3();
+          const size = new THREE.Vector3();
+          box.getCenter(center);
+          box.getSize(size);
+          const targetX = 0;
+          const targetZ = -120;
+          const groundY = playerState.groundY;
+          const yOffset = groundY - box.min.y;
+          model.position.set(targetX - center.x, yOffset, targetZ - center.z);
+          model.updateWorldMatrix(true, true);
+
+          const placedBox = new THREE.Box3().setFromObject(model);
+          const placedCenter = new THREE.Vector3();
+          const placedSize = new THREE.Vector3();
+          placedBox.getCenter(placedCenter);
+          placedBox.getSize(placedSize);
+          houseBounds = {
+            x: placedCenter.x,
+            z: placedCenter.z,
+            halfWidth: placedSize.x * 0.45,
+            halfDepth: placedSize.z * 0.45
+          };
+
+          scene.add(model);
+        },
+        undefined,
+        (error) => {
+          console.warn("Failed to load haunted house GLB. Using fallback.", error);
+          buildHouse();
+        }
+      );
+    };
+
+    loadHauntedHouse();
     if (playerState.group) {
       wasInHouse = isInsideHouse(playerState.group.position);
       everLeftHouse = !wasInHouse;
