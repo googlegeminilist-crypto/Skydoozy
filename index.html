@@ -2161,7 +2161,8 @@
       }
       return found;
     };
-    const bipedTarget = new THREE.Vector3();
+    const bipedTargetWorld = new THREE.Vector3();
+    const bipedWorldPosition = new THREE.Vector3();
     const bipedSparkleWorld = new THREE.Vector3();
     const updateGroundSparkles = (t, delta) => {
       const hasPlayer = Boolean(playerState.group);
@@ -2176,8 +2177,11 @@
       let activeCount = 0;
       const px = hasPlayer ? playerState.group.position.x : 0;
       const pz = hasPlayer ? playerState.group.position.z : 0;
-      const bx = hasBiped ? bipedState.group.position.x : 0;
-      const bz = hasBiped ? bipedState.group.position.z : 0;
+      if (hasBiped) {
+        bipedState.group.getWorldPosition(bipedWorldPosition);
+      }
+      const bx = hasBiped ? bipedWorldPosition.x : 0;
+      const bz = hasBiped ? bipedWorldPosition.z : 0;
       const collectRadius = 16;
       const collectRadiusSq = collectRadius * collectRadius;
       for (let i = 0; i < sparkleCount; i++) {
@@ -3466,7 +3470,7 @@
       phase: Math.random() * Math.PI * 2
     };
     bipedState.group.visible = false;
-    jungleGroup.add(bipedState.group);
+    scene.add(bipedState.group);
 
     const loadBipedWalker = () => {
       if (!THREE.GLTFLoader) {
@@ -3534,7 +3538,7 @@
 
     const bipedSparkleGroup = new THREE.Group();
     bipedSparkleGroup.renderOrder = 6;
-    jungleGroup.add(bipedSparkleGroup);
+    scene.add(bipedSparkleGroup);
     const bipedSparklePool = [];
     const bipedSparkleCount = 30;
     const bipedSparkleTemp = new THREE.Vector3();
@@ -3564,7 +3568,6 @@
     const spawnBipedSparkles = (worldPosition) => {
       if (!bipedSparklePool.length) return;
       bipedSparkleTemp.copy(worldPosition);
-      jungleGroup.worldToLocal(bipedSparkleTemp);
       const burstCount = 12;
       for (let i = 0; i < burstCount; i++) {
         let entry = null;
@@ -4944,10 +4947,10 @@
         }
         const bipedPos = bipedState.group.position;
         let tracking = false;
-        if (getNearestSparkle(bipedPos.x, bipedPos.z, bipedTarget)) {
+        if (getNearestSparkle(bipedPos.x, bipedPos.z, bipedTargetWorld)) {
           tracking = true;
-          const dx = bipedTarget.x - bipedPos.x;
-          const dz = bipedTarget.z - bipedPos.z;
+          const dx = bipedTargetWorld.x - bipedPos.x;
+          const dz = bipedTargetWorld.z - bipedPos.z;
           const dist = Math.hypot(dx, dz);
           if (dist > 0.5) {
             const step = Math.min(dist, bipedState.trackSpeed * delta);
