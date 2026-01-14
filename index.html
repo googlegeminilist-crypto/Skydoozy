@@ -188,21 +188,6 @@
       z-index: 0;
     }
 
-    .matrix-underlay {
-      position: absolute;
-      right: 10px;
-      bottom: 10px;
-      width: clamp(90px, 22vw, 160px);
-      aspect-ratio: 16 / 9;
-      border-radius: 8px;
-      object-fit: cover;
-      opacity: 0.7;
-      filter: saturate(1.15) contrast(1.05);
-      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45), 0 0 8px rgba(124, 255, 149, 0.3);
-      pointer-events: none;
-      z-index: 1;
-    }
-
     .matrix-overlay {
       position: absolute;
       inset: 0;
@@ -433,6 +418,27 @@
 
     .word-cloud.is-list li.is-collected {
       display: block;
+    }
+
+    .word-glass {
+      position: relative;
+      height: clamp(90px, 18vh, 140px);
+      border-radius: 14px;
+      background: rgba(8, 14, 26, 0.45);
+      border: 1px solid rgba(155, 213, 255, 0.25);
+      box-shadow: inset 0 0 18px rgba(10, 16, 28, 0.55), 0 8px 18px rgba(0, 0, 0, 0.2);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .word-glass video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+      filter: saturate(1.1) contrast(1.05);
     }
 
     .blog-panel {
@@ -810,9 +816,6 @@
   <div class="title-stack">
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
-      <video class="matrix-underlay" id="matrixLogoVideo" autoplay muted loop playsinline preload="auto" aria-hidden="true">
-        <source src="Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4" type="video/mp4" />
-      </video>
       <div class="matrix-overlay">
         <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
       </div>
@@ -838,6 +841,11 @@
       <li style="--x: -80; --y: 210; --dx: 8; --dy: -10; --d: 13;">Badminton</li>
       <li style="--x: 120; --y: 210; --dx: -9; --dy: -8; --d: 15;">Table Tennis</li>
     </ul>
+    <div class="word-glass" aria-hidden="true">
+      <video autoplay muted loop playsinline preload="auto">
+        <source src="Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4" type="video/mp4" />
+      </video>
+    </div>
   </section>
   <section class="blog-panel">
     <h2>Skydoozy Blog</h2>
