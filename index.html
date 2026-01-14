@@ -783,6 +783,7 @@
   <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
   <audio id="voiceAudio" src="ElevenLabs_2026-01-11T02_53_58_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
   <audio id="introAudio" src="ElevenLabs_2026-01-13T19_39_49_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
+  <audio id="poppyAudio" src="ElevenLabs_2026-01-14T17_28_18_Alice%20-%20Clear%2C%20Engaging%20Educator_pre_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
   <div class="intro-overlay" id="introOverlay" aria-hidden="false">
     <video class="intro-video" id="introVideo" playsinline autoplay preload="auto"
       data-intro-sequence="Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4|Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4">
@@ -866,6 +867,12 @@
     const introOverlay = document.getElementById("introOverlay");
     const introVideo = document.getElementById("introVideo");
     const introAudio = document.getElementById("introAudio");
+    const poppyAudio = document.getElementById("poppyAudio");
+    const poppyAudioFile = "ElevenLabs_2026-01-14T17_28_18_Alice - Clear, Engaging Educator_pre_sp100_s50_sb75_v3.mp3";
+    if (poppyAudio) {
+      poppyAudio.src = encodeURI(poppyAudioFile);
+      poppyAudio.load();
+    }
     const lockTimer = document.getElementById("lockTimer");
     const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
     const debugOverrideKey = "skydoozy-debug";
@@ -1078,10 +1085,31 @@
         endVoiceDuck();
       });
     };
+    const playPoppyAudio = () => {
+      if (!poppyAudio) return;
+      startVoiceDuck();
+      poppyAudio.volume = 0.95;
+      try {
+        poppyAudio.currentTime = 0;
+      } catch (error) {
+        // Ignore seek errors.
+      }
+      poppyAudio.play().catch(() => {
+        endVoiceDuck();
+      });
+    };
     if (voiceAudio) {
       voiceAudio.addEventListener("ended", endVoiceDuck);
       voiceAudio.addEventListener("pause", () => {
         if (voiceAudio.currentTime > 0 && !voiceAudio.ended) {
+          endVoiceDuck();
+        }
+      });
+    }
+    if (poppyAudio) {
+      poppyAudio.addEventListener("ended", endVoiceDuck);
+      poppyAudio.addEventListener("pause", () => {
+        if (poppyAudio.currentTime > 0 && !poppyAudio.ended) {
           endVoiceDuck();
         }
       });
@@ -2114,14 +2142,14 @@
       sparkleGeometry.attributes.position.needsUpdate = true;
       sparkleGeometry.attributes.color.needsUpdate = true;
     };
+    const isTypingTarget = (target) => target instanceof HTMLElement &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable);
     const setMoveKey = (event, isDown) => {
       updateControlLockState(Date.now());
       const isArrowKey = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key);
       if (!isArrowKey) return;
-      const isTypingTarget = event.target instanceof HTMLElement &&
-        (event.target.tagName === "INPUT" ||
-          event.target.tagName === "TEXTAREA" ||
-          event.target.isContentEditable);
       if (!isDown) {
         switch (event.key) {
           case "ArrowUp":
@@ -2141,11 +2169,12 @@
         }
         return;
       }
+      const typingTarget = isTypingTarget(event.target);
       if (controlsBlockedToday) {
-        if (!isTypingTarget) event.preventDefault();
+        if (!typingTarget) event.preventDefault();
         return;
       }
-      if (isTypingTarget) return;
+      if (typingTarget) return;
       switch (event.key) {
         case "ArrowUp":
           markControlsUsed();
@@ -2170,11 +2199,35 @@
     };
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const poppyNearWorld = new THREE.Vector3();
+    const poppyListenerWorld = new THREE.Vector3();
+    const poppyProximity = {
+      radius: 120,
+      cooldownMs: 1600,
+      nextAt: 0
+    };
     const isUiTarget = (target) => {
       if (!(target instanceof Element)) return false;
       return Boolean(
         target.closest(".story-panel, .blog-panel, .audio-control, .app-note")
       );
+    };
+    const handlePoppySpace = (event) => {
+      if (event.code !== "Space") return;
+      if (isTypingTarget(event.target)) return;
+      if (!bipedState.model) return;
+      const now = performance.now();
+      if (now < poppyProximity.nextAt) return;
+      bipedState.group.getWorldPosition(poppyNearWorld);
+      if (playerState.group) {
+        playerState.group.getWorldPosition(poppyListenerWorld);
+      } else {
+        camera.getWorldPosition(poppyListenerWorld);
+      }
+      if (poppyNearWorld.distanceTo(poppyListenerWorld) > poppyProximity.radius) return;
+      event.preventDefault();
+      poppyProximity.nextAt = now + poppyProximity.cooldownMs;
+      playPoppyAudio();
     };
     const handleCharacterClick = (event) => {
       if (!playerState.group || characterClickedToday) return;
@@ -2193,6 +2246,7 @@
       updateTitleHintText(hintDefaultText);
     };
     window.addEventListener("keydown", (event) => setMoveKey(event, true));
+    window.addEventListener("keydown", handlePoppySpace);
     window.addEventListener("keyup", (event) => setMoveKey(event, false));
     window.addEventListener("pointerdown", handleCharacterClick);
     window.addEventListener("blur", resetMoveState);
@@ -3301,8 +3355,8 @@
       model: null,
       mixer: null,
       action: null,
-      center: new THREE.Vector3(0, playerState.groundY + 2, -40),
-      radius: new THREE.Vector2(170, 110),
+      center: new THREE.Vector3(0, playerState.groundY + 2, -20),
+      radius: new THREE.Vector2(110, 60),
       speed: 0.1,
       bob: 0.6,
       lookAhead: 0.35,
