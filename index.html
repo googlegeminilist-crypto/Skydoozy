@@ -218,6 +218,14 @@
       color: rgba(255, 80, 80, 0.7);
     }
 
+    .matrix-input--poppy {
+      border: 1px solid rgba(79, 166, 255, 0.7);
+      color: #73c8ff;
+      box-shadow: 0 0 12px rgba(79, 166, 255, 0.35);
+      background: rgba(6, 12, 24, 0.65);
+      pointer-events: none;
+    }
+
     #cursor-canvas {
       position: fixed;
       width: 120px;
@@ -797,6 +805,7 @@
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
       <div class="matrix-overlay">
+        <div class="matrix-input matrix-input--poppy" id="poppyInput">Poppy spells:</div>
         <input class="matrix-input" id="matrixInput" placeholder="Type here..." />
       </div>
     </div>
@@ -868,6 +877,7 @@
     const introVideo = document.getElementById("introVideo");
     const introAudio = document.getElementById("introAudio");
     const poppyAudio = document.getElementById("poppyAudio");
+    const poppyInput = document.getElementById("poppyInput");
     const poppyAudioFile = "ElevenLabs_2026-01-14T17_28_18_Alice - Clear, Engaging Educator_pre_sp100_s50_sb75_v3.mp3";
     if (poppyAudio) {
       poppyAudio.src = encodeURI(poppyAudioFile);
@@ -1646,6 +1656,47 @@
       }
       return next || null;
     };
+    const fruitWords = [
+      "Apple",
+      "Banana",
+      "Cherry",
+      "Grape",
+      "Kiwi",
+      "Lemon",
+      "Mango",
+      "Orange",
+      "Peach",
+      "Pear",
+      "Pineapple",
+      "Plum"
+    ];
+    let fruitBag = [];
+    const refillFruitBag = () => {
+      fruitBag = fruitWords.slice();
+      for (let i = fruitBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [fruitBag[i], fruitBag[j]] = [fruitBag[j], fruitBag[i]];
+      }
+    };
+    const pickFruitWord = () => {
+      if (fruitBag.length === 0) refillFruitBag();
+      return fruitBag.pop() || null;
+    };
+    const poppySpelledWords = [];
+    const updatePoppySpelling = (word) => {
+      if (!poppyInput || !word) return;
+      poppySpelledWords.push(word);
+      if (poppySpelledWords.length > 8) {
+        poppySpelledWords.shift();
+      }
+      poppyInput.textContent = `Poppy spells: ${poppySpelledWords.join(" ")}`;
+    };
+    const collectFruitWord = () => {
+      const next = pickFruitWord();
+      if (!next) return null;
+      updatePoppySpelling(next);
+      return next;
+    };
     const collectTreasureWord = () => {
       if (!wordCloud) return;
       const next = pickTreasureWord();
@@ -1667,6 +1718,7 @@
       collectedWordCount = words.length;
       wordBag = [];
       refillBag();
+      return next;
     };
     const treasureWordsKey = "skydoozy-treasure-words";
     let collectedTreasureWords = [];
@@ -2087,15 +2139,45 @@
       placeSparkle(i);
       sparkleRespawn[i] = 0;
     }
+    const minActiveSparkles = Math.floor(sparkleCount * 0.6);
+    const getNearestSparkle = (x, z, out) => {
+      let best = Infinity;
+      let found = false;
+      for (let i = 0; i < sparkleCount; i++) {
+        if (!sparkleActive[i]) continue;
+        const i3 = i * 3;
+        const dx = sparkleBasePositions[i3] - x;
+        const dz = sparkleBasePositions[i3 + 2] - z;
+        const dist = dx * dx + dz * dz;
+        if (dist < best) {
+          best = dist;
+          out.set(
+            sparkleBasePositions[i3],
+            sparkleBasePositions[i3 + 1],
+            sparkleBasePositions[i3 + 2]
+          );
+          found = true;
+        }
+      }
+      return found;
+    };
+    const bipedTarget = new THREE.Vector3();
+    const bipedSparkleWorld = new THREE.Vector3();
     const updateGroundSparkles = (t, delta) => {
-      if (!sparklesEnabled || !playerState.group) {
+      const hasPlayer = Boolean(playerState.group);
+      const hasBiped = Boolean(bipedState.model);
+      const sparklesActive = sparklesEnabled || hasBiped;
+      if (!sparklesActive || (!hasPlayer && !hasBiped)) {
         sparklePoints.visible = false;
         return;
       }
       sparklePoints.visible = true;
       let collectedThisFrame = false;
-      const px = playerState.group.position.x;
-      const pz = playerState.group.position.z;
+      let activeCount = 0;
+      const px = hasPlayer ? playerState.group.position.x : 0;
+      const pz = hasPlayer ? playerState.group.position.z : 0;
+      const bx = hasBiped ? bipedState.group.position.x : 0;
+      const bz = hasBiped ? bipedState.group.position.z : 0;
       const collectRadius = 16;
       const collectRadiusSq = collectRadius * collectRadius;
       for (let i = 0; i < sparkleCount; i++) {
@@ -2113,11 +2195,16 @@
             continue;
           }
         }
+        activeCount += 1;
         const dx = sparkleBasePositions[i3] - px;
         const dz = sparkleBasePositions[i3 + 2] - pz;
-        if (dx * dx + dz * dz < collectRadiusSq) {
+        const bdx = sparkleBasePositions[i3] - bx;
+        const bdz = sparkleBasePositions[i3 + 2] - bz;
+        const playerCollect = hasPlayer && dx * dx + dz * dz < collectRadiusSq;
+        const bipedCollect = !playerCollect && hasBiped && bdx * bdx + bdz * bdz < collectRadiusSq;
+        if (playerCollect || bipedCollect) {
           sparkleActive[i] = 0;
-          sparkleRespawn[i] = t + randomRange(2.2, 4.2);
+          sparkleRespawn[i] = t + randomRange(1.2, 2.6);
           sparklePositions[i3] = 0;
           sparklePositions[i3 + 1] = playerState.groundY - 200;
           sparklePositions[i3 + 2] = 0;
@@ -2125,7 +2212,13 @@
           sparkleColors[i3 + 1] = 0;
           sparkleColors[i3 + 2] = 0;
           if (!collectedThisFrame) {
-            collectTreasureWord();
+            if (playerCollect) {
+              collectTreasureWord();
+            } else if (bipedCollect) {
+              collectFruitWord();
+              bipedState.group.getWorldPosition(bipedSparkleWorld);
+              spawnBipedSparkles(bipedSparkleWorld);
+            }
             collectedThisFrame = true;
           }
           continue;
@@ -2138,6 +2231,14 @@
         sparkleColors[i3] = sparkleBaseColors[i3] * twinkle;
         sparkleColors[i3 + 1] = sparkleBaseColors[i3 + 1] * twinkle;
         sparkleColors[i3 + 2] = sparkleBaseColors[i3 + 2] * twinkle;
+      }
+      if (activeCount < minActiveSparkles) {
+        for (let i = 0; i < sparkleCount && activeCount < minActiveSparkles; i++) {
+          if (sparkleActive[i]) continue;
+          placeSparkle(i);
+          sparkleRespawn[i] = t + randomRange(1.0, 2.0);
+          activeCount += 1;
+        }
       }
       sparkleGeometry.attributes.position.needsUpdate = true;
       sparkleGeometry.attributes.color.needsUpdate = true;
@@ -3361,6 +3462,7 @@
       bob: 0.6,
       lookAhead: 0.35,
       faceOffset: 0,
+      trackSpeed: 22,
       phase: Math.random() * Math.PI * 2
     };
     bipedState.group.visible = false;
@@ -3429,6 +3531,84 @@
     };
 
     loadBipedWalker();
+
+    const bipedSparkleGroup = new THREE.Group();
+    bipedSparkleGroup.renderOrder = 6;
+    jungleGroup.add(bipedSparkleGroup);
+    const bipedSparklePool = [];
+    const bipedSparkleCount = 30;
+    const bipedSparkleTemp = new THREE.Vector3();
+    for (let i = 0; i < bipedSparkleCount; i++) {
+      const sparkleMaterial = new THREE.SpriteMaterial({
+        map: sparkleTexture,
+        color: 0x7fd1ff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
+      const sparkle = new THREE.Sprite(sparkleMaterial);
+      sparkle.scale.set(3.6, 3.6, 1);
+      sparkle.visible = false;
+      bipedSparkleGroup.add(sparkle);
+      bipedSparklePool.push({
+        sprite: sparkle,
+        life: 0,
+        maxLife: 0,
+        baseScale: 0,
+        spin: 0,
+        velocity: new THREE.Vector3()
+      });
+    }
+
+    const spawnBipedSparkles = (worldPosition) => {
+      if (!bipedSparklePool.length) return;
+      bipedSparkleTemp.copy(worldPosition);
+      jungleGroup.worldToLocal(bipedSparkleTemp);
+      const burstCount = 12;
+      for (let i = 0; i < burstCount; i++) {
+        let entry = null;
+        for (let j = 0; j < bipedSparklePool.length; j++) {
+          if (bipedSparklePool[j].life > 0) continue;
+          entry = bipedSparklePool[j];
+          break;
+        }
+        if (!entry) break;
+        entry.maxLife = randomRange(0.45, 0.95);
+        entry.life = entry.maxLife;
+        entry.baseScale = randomRange(3.6, 5.4);
+        entry.sprite.position.set(
+          bipedSparkleTemp.x + randomRange(-1.8, 1.8),
+          bipedSparkleTemp.y + randomRange(0.8, 4.2),
+          bipedSparkleTemp.z + randomRange(-1.8, 1.8)
+        );
+        entry.velocity.set(randomRange(-2.6, 2.6), randomRange(2.0, 5.2), randomRange(-2.6, 2.6));
+        entry.spin = randomRange(-2.2, 2.2);
+        entry.sprite.material.opacity = 0.9;
+        entry.sprite.material.rotation = randomRange(0, Math.PI * 2);
+        entry.sprite.scale.set(entry.baseScale, entry.baseScale, 1);
+        entry.sprite.visible = true;
+      }
+    };
+
+    const updateBipedSparkles = (delta) => {
+      bipedSparklePool.forEach((entry) => {
+        if (entry.life <= 0) return;
+        entry.life -= delta;
+        if (entry.life <= 0) {
+          entry.life = 0;
+          entry.sprite.visible = false;
+          entry.sprite.material.opacity = 0;
+          return;
+        }
+        const t = 1 - entry.life / entry.maxLife;
+        entry.sprite.position.addScaledVector(entry.velocity, delta);
+        entry.sprite.material.opacity = (1 - t) * 0.85;
+        const scale = entry.baseScale * (1 + t * 0.8);
+        entry.sprite.scale.set(scale, scale, 1);
+        entry.sprite.material.rotation += entry.spin * delta;
+      });
+    };
 
     const makeRainDropTexture = () => {
       const size = 64;
@@ -4623,6 +4803,7 @@
       }
       updateRain(t, delta);
       updateSmoke(t, delta);
+      updateBipedSparkles(delta);
       if (rainbowLights.material) {
         const baseOpacity = 0.7 + Math.sin(t * 2.4) * 0.3;
         rainbowLights.material.opacity = Math.min(1, baseOpacity + flashBoost * 0.6);
@@ -4761,18 +4942,35 @@
         if (bipedState.mixer) {
           bipedState.mixer.update(delta);
         }
-        const walkT = t * bipedState.speed + bipedState.phase;
-        const x = bipedState.center.x + Math.cos(walkT) * bipedState.radius.x;
-        const z = bipedState.center.z + Math.sin(walkT) * bipedState.radius.y;
-        const y = bipedState.center.y + Math.sin(walkT * 1.6) * bipedState.bob;
-        bipedState.group.position.set(x, y, z);
+        const bipedPos = bipedState.group.position;
+        let tracking = false;
+        if (getNearestSparkle(bipedPos.x, bipedPos.z, bipedTarget)) {
+          tracking = true;
+          const dx = bipedTarget.x - bipedPos.x;
+          const dz = bipedTarget.z - bipedPos.z;
+          const dist = Math.hypot(dx, dz);
+          if (dist > 0.5) {
+            const step = Math.min(dist, bipedState.trackSpeed * delta);
+            bipedPos.x += (dx / dist) * step;
+            bipedPos.z += (dz / dist) * step;
+          }
+          bipedPos.y = bipedState.center.y + Math.sin(t * 2.2) * bipedState.bob;
+          bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+        }
+        if (!tracking) {
+          const walkT = t * bipedState.speed + bipedState.phase;
+          const x = bipedState.center.x + Math.cos(walkT) * bipedState.radius.x;
+          const z = bipedState.center.z + Math.sin(walkT) * bipedState.radius.y;
+          const y = bipedState.center.y + Math.sin(walkT * 1.6) * bipedState.bob;
+          bipedState.group.position.set(x, y, z);
 
-        const aheadT = walkT + bipedState.lookAhead;
-        const aheadX = bipedState.center.x + Math.cos(aheadT) * bipedState.radius.x;
-        const aheadZ = bipedState.center.z + Math.sin(aheadT) * bipedState.radius.y;
-        const dx = aheadX - x;
-        const dz = aheadZ - z;
-        bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+          const aheadT = walkT + bipedState.lookAhead;
+          const aheadX = bipedState.center.x + Math.cos(aheadT) * bipedState.radius.x;
+          const aheadZ = bipedState.center.z + Math.sin(aheadT) * bipedState.radius.y;
+          const dx = aheadX - x;
+          const dz = aheadZ - z;
+          bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+        }
       }
 
       const heroAngle = t * heroLightParams.speed + heroLightParams.phase;
