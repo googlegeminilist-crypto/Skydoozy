@@ -3296,6 +3296,86 @@
     scene.add(jungleGroup);
     playerState.groundY = jungleGroup.position.y;
 
+    const bipedState = {
+      group: new THREE.Group(),
+      model: null,
+      mixer: null,
+      action: null,
+      center: new THREE.Vector3(0, playerState.groundY + 2, -40),
+      radius: new THREE.Vector2(170, 110),
+      speed: 0.1,
+      bob: 0.6,
+      lookAhead: 0.35,
+      faceOffset: 0,
+      phase: Math.random() * Math.PI * 2
+    };
+    bipedState.group.visible = false;
+    jungleGroup.add(bipedState.group);
+
+    const loadBipedWalker = () => {
+      if (!THREE.GLTFLoader) {
+        console.warn("GLTFLoader missing. Skipping biped walker.");
+        return;
+      }
+      const loader = new THREE.GLTFLoader();
+      const bipedUrl = new URL(
+        "Meshy_AI_biped/Meshy_AI_Animation_Walking_withSkin.glb",
+        window.location.href
+      ).href;
+      loader.load(
+        bipedUrl,
+        (gltf) => {
+          const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!model) {
+            console.warn("Biped GLB loaded without a scene.");
+            return;
+          }
+          model.traverse((child) => {
+            if (!child.isMesh) return;
+            child.castShadow = false;
+            child.receiveShadow = false;
+            child.frustumCulled = false;
+            if (child.material) {
+              const mats = Array.isArray(child.material) ? child.material : [child.material];
+              mats.forEach((mat) => {
+                if (!mat) return;
+                mat.side = THREE.FrontSide;
+              });
+            }
+          });
+
+          const targetHeight = 24;
+          const tempBox = new THREE.Box3().setFromObject(model);
+          const tempSize = new THREE.Vector3();
+          tempBox.getSize(tempSize);
+          if (tempSize.y > 0) {
+            model.scale.setScalar(targetHeight / tempSize.y);
+          }
+
+          model.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(model);
+          if (Number.isFinite(box.min.y)) {
+            model.position.y -= box.min.y;
+          }
+
+          bipedState.group.add(model);
+          bipedState.model = model;
+          if (gltf.animations && gltf.animations.length) {
+            bipedState.mixer = new THREE.AnimationMixer(model);
+            bipedState.action = bipedState.mixer.clipAction(gltf.animations[0]);
+            bipedState.action.play();
+          }
+          bipedState.group.visible = true;
+        },
+        undefined,
+        (error) => {
+          console.warn("Failed to load biped GLB.", error);
+        }
+      );
+    };
+
+    loadBipedWalker();
+
     const makeRainDropTexture = () => {
       const size = 64;
       const canvas = document.createElement("canvas");
@@ -4623,6 +4703,23 @@
       camera.lookAt(cameraTarget);
 
       jungleGroup.rotation.y = t * orbitSpeed;
+      if (bipedState.model) {
+        if (bipedState.mixer) {
+          bipedState.mixer.update(delta);
+        }
+        const walkT = t * bipedState.speed + bipedState.phase;
+        const x = bipedState.center.x + Math.cos(walkT) * bipedState.radius.x;
+        const z = bipedState.center.z + Math.sin(walkT) * bipedState.radius.y;
+        const y = bipedState.center.y + Math.sin(walkT * 1.6) * bipedState.bob;
+        bipedState.group.position.set(x, y, z);
+
+        const aheadT = walkT + bipedState.lookAhead;
+        const aheadX = bipedState.center.x + Math.cos(aheadT) * bipedState.radius.x;
+        const aheadZ = bipedState.center.z + Math.sin(aheadT) * bipedState.radius.y;
+        const dx = aheadX - x;
+        const dz = aheadZ - z;
+        bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+      }
 
       const heroAngle = t * heroLightParams.speed + heroLightParams.phase;
       const heroAngleZ = t * (heroLightParams.speed * 0.82) + heroLightParams.phase * 0.6;
