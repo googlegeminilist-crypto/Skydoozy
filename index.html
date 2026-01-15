@@ -5232,6 +5232,11 @@
           persistLastMove(nowEpoch);
         }
       }
+      const morphVisible = !playerMoving;
+      if (points.visible !== morphVisible) {
+        points.visible = morphVisible;
+        violetPoints.visible = morphVisible;
+      }
       if (controlsBlockedToday) {
         updateTitleHintText(hintLockedText);
       } else if (playerMoving) {
