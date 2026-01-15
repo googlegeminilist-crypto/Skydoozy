@@ -2069,6 +2069,11 @@
       const orbitHeight = 260;
       const orbitSpeed = 0.06;
       const fixedCameraPosition = new THREE.Vector3(orbitRadius, orbitHeight, -80);
+      const closeCameraPosition = new THREE.Vector3()
+        .copy(fixedCameraPosition)
+        .sub(cameraTarget)
+        .multiplyScalar(0.72)
+        .add(cameraTarget);
       camera.position.copy(fixedCameraPosition);
       camera.lookAt(cameraTarget);
       camera.updateMatrixWorld();
@@ -5535,7 +5540,9 @@
       farGlowMaterial.color.setHSL(farHue % 1, 0.9, 0.82);
       nearGlowMaterial.color.setHSL(nearHue % 1, 0.95, 0.85);
 
-      camera.position.copy(fixedCameraPosition);
+      const cameraDesired = playerMoving ? closeCameraPosition : fixedCameraPosition;
+      const cameraLerp = playerMoving ? 0.08 : 0.05;
+      camera.position.lerp(cameraDesired, cameraLerp);
       if (camera.position.y < minCameraHeight) camera.position.y = minCameraHeight;
       grid.getWorldQuaternion(floorQuat);
       floorNormal.set(0, 0, 1).applyQuaternion(floorQuat).normalize();
