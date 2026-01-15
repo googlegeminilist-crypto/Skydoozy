@@ -3796,6 +3796,71 @@
 
     loadPlanetDecor();
 
+    const pixieDragonState = {
+      group: new THREE.Group(),
+      model: null
+    };
+    pixieDragonState.group.position.set(-120, playerState.groundY + 6, -90);
+    pixieDragonState.group.rotation.y = Math.PI * 1.4;
+    jungleGroup.add(pixieDragonState.group);
+
+    const loadPixieDragon = () => {
+      if (!THREE.GLTFLoader) {
+        console.warn("GLTFLoader missing. Skipping pixie dragon.");
+        return;
+      }
+      const loader = new THREE.GLTFLoader();
+      const dragonUrl = new URL(
+        "Meshy_AI_Flower_Pixie_Dragon__0105010916_texture.glb",
+        window.location.href
+      ).href;
+      loader.load(
+        dragonUrl,
+        (gltf) => {
+          const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!model) {
+            console.warn("Pixie dragon GLB loaded without a scene.");
+            return;
+          }
+          model.traverse((child) => {
+            if (!child.isMesh) return;
+            child.castShadow = false;
+            child.receiveShadow = false;
+            child.frustumCulled = false;
+            if (child.material) {
+              const mats = Array.isArray(child.material) ? child.material : [child.material];
+              mats.forEach((mat) => {
+                if (!mat) return;
+                mat.side = THREE.FrontSide;
+              });
+            }
+          });
+
+          const targetHeight = 18;
+          const tempBox = new THREE.Box3().setFromObject(model);
+          const tempSize = new THREE.Vector3();
+          tempBox.getSize(tempSize);
+          if (tempSize.y > 0) {
+            model.scale.setScalar(targetHeight / tempSize.y);
+          }
+          model.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(model);
+          if (Number.isFinite(box.min.y)) {
+            model.position.y -= box.min.y;
+          }
+
+          pixieDragonState.group.add(model);
+          pixieDragonState.model = model;
+        },
+        undefined,
+        (error) => {
+          console.warn("Failed to load pixie dragon GLB.", error);
+        }
+      );
+    };
+
+    loadPixieDragon();
+
     const bipedSparkleGroup = new THREE.Group();
     bipedSparkleGroup.renderOrder = 6;
     scene.add(bipedSparkleGroup);
