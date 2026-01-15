@@ -1683,13 +1683,54 @@
       return fruitBag.pop() || null;
     };
     const poppySpelledWords = [];
+    const poppySpellQueue = [];
+    let poppyTyping = false;
+    let poppyTypingTimer = 0;
+    const renderPoppySpelling = (partialWord = "") => {
+      if (!poppyInput) return;
+      const words = poppySpelledWords.slice();
+      const parts = partialWord ? words.concat(partialWord) : words;
+      poppyInput.textContent = parts.length
+        ? `Poppy spells: ${parts.join(" ")}`
+        : "Poppy spells:";
+    };
+    const runPoppySpelling = () => {
+      if (!poppySpellQueue.length) {
+        poppyTyping = false;
+        return;
+      }
+      poppyTyping = true;
+      const word = poppySpellQueue.shift();
+      let index = 0;
+      const tick = () => {
+        if (!poppyInput) {
+          poppyTyping = false;
+          return;
+        }
+        index += 1;
+        renderPoppySpelling(word.slice(0, index));
+        if (index < word.length) {
+          poppyTypingTimer = setTimeout(tick, 90);
+          return;
+        }
+        poppySpelledWords.push(word);
+        if (poppySpelledWords.length > 8) {
+          poppySpelledWords.shift();
+        }
+        renderPoppySpelling("");
+        poppyTypingTimer = setTimeout(runPoppySpelling, 350);
+      };
+      tick();
+    };
     const updatePoppySpelling = (word) => {
       if (!poppyInput || !word) return;
-      poppySpelledWords.push(word);
-      if (poppySpelledWords.length > 8) {
-        poppySpelledWords.shift();
+      const trimmed = word.trim();
+      if (!trimmed) return;
+      poppySpellQueue.push(trimmed);
+      if (!poppyTyping) {
+        if (poppyTypingTimer) clearTimeout(poppyTypingTimer);
+        runPoppySpelling();
       }
-      poppyInput.textContent = `Poppy spells: ${poppySpelledWords.join(" ")}`;
     };
     const collectFruitWord = () => {
       const next = pickFruitWord();
@@ -1709,6 +1750,7 @@
       appendWordToCloud(next);
       collectedTreasureSet.add(normalized);
       collectedTreasureWords.push(next);
+      updatePoppySpelling(next);
       saveTreasureWords();
       if (isTreasureSetComplete()) {
         showTreasureComplete();
@@ -2001,6 +2043,7 @@
       const fixedCameraPosition = new THREE.Vector3(orbitRadius, orbitHeight, -80);
       camera.position.copy(fixedCameraPosition);
       camera.lookAt(cameraTarget);
+      camera.updateMatrixWorld();
       const minCameraHeight = 120;
       const minOrbitDistance = 520;
 
@@ -2161,12 +2204,44 @@
       }
       return found;
     };
+    const sparkleScreenWorld = new THREE.Vector3();
+    const sparkleScreenNdc = new THREE.Vector3();
+    const getNearestFrontSparkle = (x, z, out) => {
+      let best = Infinity;
+      let found = false;
+      for (let i = 0; i < sparkleCount; i++) {
+        if (!sparkleActive[i]) continue;
+        const i3 = i * 3;
+        sparkleScreenWorld.set(
+          sparkleBasePositions[i3],
+          sparkleBasePositions[i3 + 1],
+          sparkleBasePositions[i3 + 2]
+        );
+        sparkleScreenNdc.copy(sparkleScreenWorld).project(camera);
+        if (sparkleScreenNdc.z < -1 || sparkleScreenNdc.z > 1) continue;
+        if (Math.abs(sparkleScreenNdc.x) > 0.95 || Math.abs(sparkleScreenNdc.y) > 0.95) continue;
+        const dx = sparkleBasePositions[i3] - x;
+        const dz = sparkleBasePositions[i3 + 2] - z;
+        const dist = dx * dx + dz * dz;
+        if (dist < best) {
+          best = dist;
+          out.set(
+            sparkleBasePositions[i3],
+            sparkleBasePositions[i3 + 1],
+            sparkleBasePositions[i3 + 2]
+          );
+          found = true;
+        }
+      }
+      return found;
+    };
     const bipedTargetWorld = new THREE.Vector3();
     const bipedWorldPosition = new THREE.Vector3();
     const bipedSparkleWorld = new THREE.Vector3();
     const updateGroundSparkles = (t, delta) => {
       const hasPlayer = Boolean(playerState.group);
       const hasBiped = Boolean(bipedState.model);
+      const canBipedCollect = hasBiped && bipedState.collectTreasures;
       const sparklesActive = sparklesEnabled || hasBiped;
       if (!sparklesActive || (!hasPlayer && !hasBiped)) {
         sparklePoints.visible = false;
@@ -2177,11 +2252,13 @@
       let activeCount = 0;
       const px = hasPlayer ? playerState.group.position.x : 0;
       const pz = hasPlayer ? playerState.group.position.z : 0;
-      if (hasBiped) {
+      let bx = 0;
+      let bz = 0;
+      if (canBipedCollect) {
         bipedState.group.getWorldPosition(bipedWorldPosition);
+        bx = bipedWorldPosition.x;
+        bz = bipedWorldPosition.z;
       }
-      const bx = hasBiped ? bipedWorldPosition.x : 0;
-      const bz = hasBiped ? bipedWorldPosition.z : 0;
       const collectRadius = 16;
       const collectRadiusSq = collectRadius * collectRadius;
       for (let i = 0; i < sparkleCount; i++) {
@@ -2202,10 +2279,13 @@
         activeCount += 1;
         const dx = sparkleBasePositions[i3] - px;
         const dz = sparkleBasePositions[i3 + 2] - pz;
-        const bdx = sparkleBasePositions[i3] - bx;
-        const bdz = sparkleBasePositions[i3 + 2] - bz;
         const playerCollect = hasPlayer && dx * dx + dz * dz < collectRadiusSq;
-        const bipedCollect = !playerCollect && hasBiped && bdx * bdx + bdz * bdz < collectRadiusSq;
+        let bipedCollect = false;
+        if (!playerCollect && canBipedCollect) {
+          const bdx = sparkleBasePositions[i3] - bx;
+          const bdz = sparkleBasePositions[i3 + 2] - bz;
+          bipedCollect = bdx * bdx + bdz * bdz < collectRadiusSq;
+        }
         if (playerCollect || bipedCollect) {
           sparkleActive[i] = 0;
           sparkleRespawn[i] = t + randomRange(1.2, 2.6);
@@ -3467,6 +3547,13 @@
       lookAhead: 0.35,
       faceOffset: 0,
       trackSpeed: 22,
+      idleRadius: 0,
+      idleSpeed: 0,
+      chaseTreasures: true,
+      collectTreasures: true,
+      rootBone: null,
+      rootBoneBase: null,
+      modelBasePosition: null,
       phase: Math.random() * Math.PI * 2
     };
     bipedState.group.visible = false;
@@ -3516,6 +3603,24 @@
           const box = new THREE.Box3().setFromObject(model);
           if (Number.isFinite(box.min.y)) {
             model.position.y -= box.min.y;
+          }
+
+          bipedState.modelBasePosition = model.position.clone();
+          const skinnedMeshes = [];
+          model.traverse((child) => {
+            if (child.isSkinnedMesh && child.skeleton) {
+              skinnedMeshes.push(child);
+            }
+          });
+          if (skinnedMeshes.length) {
+            const skeleton = skinnedMeshes[0].skeleton;
+            const rootBone = skeleton.bones.find(
+              (bone) => !bone.parent || !bone.parent.isBone
+            ) || skeleton.bones[0];
+            if (rootBone) {
+              bipedState.rootBone = rootBone;
+              bipedState.rootBoneBase = rootBone.position.clone();
+            }
           }
 
           bipedState.group.add(model);
@@ -4939,6 +5044,7 @@
         camera.position.addScaledVector(floorNormal, floorClearance - distanceToFloor);
       }
       camera.lookAt(cameraTarget);
+      camera.updateMatrixWorld();
 
       jungleGroup.rotation.y = t * orbitSpeed;
       if (bipedState.model) {
@@ -4947,7 +5053,9 @@
         }
         const bipedPos = bipedState.group.position;
         let tracking = false;
-        if (getNearestSparkle(bipedPos.x, bipedPos.z, bipedTargetWorld)) {
+        const hasTarget = bipedState.chaseTreasures &&
+          getNearestSparkle(bipedPos.x, bipedPos.z, bipedTargetWorld);
+        if (hasTarget) {
           tracking = true;
           const dx = bipedTargetWorld.x - bipedPos.x;
           const dz = bipedTargetWorld.z - bipedPos.z;
@@ -4960,19 +5068,19 @@
           bipedPos.y = bipedState.center.y + Math.sin(t * 2.2) * bipedState.bob;
           bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
         }
+        if (bipedState.model && bipedState.modelBasePosition) {
+          bipedState.model.position.copy(bipedState.modelBasePosition);
+        }
+        if (bipedState.rootBone && bipedState.rootBoneBase) {
+          bipedState.rootBone.position.x = bipedState.rootBoneBase.x;
+          bipedState.rootBone.position.z = bipedState.rootBoneBase.z;
+        }
         if (!tracking) {
-          const walkT = t * bipedState.speed + bipedState.phase;
-          const x = bipedState.center.x + Math.cos(walkT) * bipedState.radius.x;
-          const z = bipedState.center.z + Math.sin(walkT) * bipedState.radius.y;
-          const y = bipedState.center.y + Math.sin(walkT * 1.6) * bipedState.bob;
+          const x = bipedState.center.x;
+          const z = bipedState.center.z;
+          const y = bipedState.center.y + Math.sin(t * 2.2) * bipedState.bob;
           bipedState.group.position.set(x, y, z);
-
-          const aheadT = walkT + bipedState.lookAhead;
-          const aheadX = bipedState.center.x + Math.cos(aheadT) * bipedState.radius.x;
-          const aheadZ = bipedState.center.z + Math.sin(aheadT) * bipedState.radius.y;
-          const dx = aheadX - x;
-          const dz = aheadZ - z;
-          bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+          bipedState.group.rotation.y = bipedState.faceOffset;
         }
       }
 
