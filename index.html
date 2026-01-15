@@ -4209,6 +4209,76 @@
 
     loadFlyingPlant();
 
+    const flowerFaceState = {
+      group: new THREE.Group(),
+      model: null,
+      center: new THREE.Vector3(20, 6, -70),
+      bob: 2.2,
+      bobSpeed: 0.9,
+      faceOffset: 0,
+      phase: Math.random() * Math.PI * 2
+    };
+    const flowerFaceWorld = new THREE.Vector3();
+    flowerFaceState.group.position.copy(flowerFaceState.center);
+    jungleGroup.add(flowerFaceState.group);
+
+    const loadFlowerFace = () => {
+      if (!THREE.GLTFLoader) {
+        console.warn("GLTFLoader missing. Skipping flower face.");
+        return;
+      }
+      const loader = new THREE.GLTFLoader();
+      const faceUrl = new URL(
+        "Meshy_AI_erstelle_mir_ein_fur__0105010140_texture.glb",
+        window.location.href
+      ).href;
+      loader.load(
+        faceUrl,
+        (gltf) => {
+          const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!model) {
+            console.warn("Flower face GLB loaded without a scene.");
+            return;
+          }
+          model.traverse((child) => {
+            if (!child.isMesh) return;
+            child.castShadow = false;
+            child.receiveShadow = false;
+            child.frustumCulled = false;
+            if (child.material) {
+              const mats = Array.isArray(child.material) ? child.material : [child.material];
+              mats.forEach((mat) => {
+                if (!mat) return;
+                mat.side = THREE.FrontSide;
+              });
+            }
+          });
+
+          const targetHeight = 26;
+          const tempBox = new THREE.Box3().setFromObject(model);
+          const tempSize = new THREE.Vector3();
+          tempBox.getSize(tempSize);
+          if (tempSize.y > 0) {
+            model.scale.setScalar(targetHeight / tempSize.y);
+          }
+          model.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(model);
+          if (Number.isFinite(box.min.y)) {
+            model.position.y -= box.min.y;
+          }
+
+          flowerFaceState.group.add(model);
+          flowerFaceState.model = model;
+        },
+        undefined,
+        (error) => {
+          console.warn("Failed to load flower face GLB.", error);
+        }
+      );
+    };
+
+    loadFlowerFace();
+
     const bipedSparkleGroup = new THREE.Group();
     bipedSparkleGroup.renderOrder = 6;
     scene.add(bipedSparkleGroup);
@@ -5694,6 +5764,17 @@
           flyingPlantState.model.rotation.y =
             flyingPlantState.modelBaseRotation.y + t * flyingPlantState.spin;
         }
+      }
+      if (flowerFaceState.group) {
+        const bob = Math.sin(t * flowerFaceState.bobSpeed + flowerFaceState.phase) * flowerFaceState.bob;
+        flowerFaceState.group.position.set(
+          flowerFaceState.center.x,
+          flowerFaceState.center.y + bob,
+          flowerFaceState.center.z
+        );
+        const faceY = flowerFaceState.group.getWorldPosition(flowerFaceWorld).y;
+        flowerFaceState.group.lookAt(camera.position.x, faceY, camera.position.z);
+        flowerFaceState.group.rotation.y += flowerFaceState.faceOffset;
       }
       if (gladeDecorState.sparkles.length) {
         gladeDecorState.sparkles.forEach((entry) => {
