@@ -27,6 +27,23 @@
       cursor: none;
     }
 
+    body.is-walking .story-panel,
+    body.is-walking .blog-panel,
+    body.is-walking .score-banner,
+    body.is-walking .streak-banner,
+    body.is-walking .audio-control,
+    body.is-walking .app-note,
+    body.is-walking .treasure-complete-banner {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    body.is-walking .title-stack > :not(.matrix-window),
+    body.is-walking .matrix-overlay {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     body.intro-open {
       overflow: hidden;
     }
@@ -5129,6 +5146,7 @@
       if (titleStack) {
         titleStack.classList.toggle("is-walking", playerMoving);
       }
+      document.body.classList.toggle("is-walking", playerMoving);
       updateRain(t, delta);
       updateSmoke(t, delta);
       updateBipedSparkles(delta);
