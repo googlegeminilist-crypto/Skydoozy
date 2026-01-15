@@ -38,8 +38,12 @@
       pointer-events: none;
     }
 
-    body.is-walking .title-stack > :not(.matrix-window),
-    body.is-walking .matrix-overlay {
+    body.is-walking .title-stack > :not(.matrix-window) {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    body.is-walking #matrixInput {
       opacity: 0;
       pointer-events: none;
     }
