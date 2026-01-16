@@ -51,6 +51,11 @@
     body.intro-open {
       overflow: hidden;
     }
+    body.intro-open .matrix-window {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
 
     .intro-overlay {
       position: fixed;
@@ -74,9 +79,14 @@
       max-height: 90vh;
       border-radius: 12px;
       display: block;
-      background: #000;
+      background: transparent;
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
       object-fit: contain;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .intro-video.is-ready {
+      opacity: 1;
     }
 
     h1 {
@@ -194,7 +204,7 @@
       background: rgba(7, 12, 18, 0.85);
       border: 1px solid rgba(124, 255, 149, 0.5);
       border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 14px rgba(124, 255, 149, 0.35);
+      box-shadow: none;
       overflow: hidden;
       z-index: 2;
     }
@@ -203,7 +213,7 @@
       width: 100%;
       height: 100%;
       display: block;
-      filter: drop-shadow(0 0 6px rgba(124, 255, 149, 0.6));
+      filter: none;
       position: absolute;
       inset: 0;
       z-index: 0;
@@ -941,6 +951,10 @@
       showIntro();
       let introVideoDone = false;
       let introAudioDone = !introAudio;
+      const setIntroReady = (ready) => {
+        introVideo.classList.toggle("is-ready", ready);
+      };
+      setIntroReady(false);
       const hideWhenDone = () => {
         if (introVideoDone && introAudioDone) hideIntro();
       };
@@ -959,6 +973,7 @@
         introVideo.load();
       };
       const playIntroVideo = () => {
+        setIntroReady(false);
         if (introSequence.length) {
           setIntroSource(introSequence[introSequenceIndex]);
         }
@@ -978,7 +993,10 @@
         introVideoDone = true;
         hideWhenDone();
       };
-      playIntroVideo();
+      introVideo.addEventListener("loadstart", () => setIntroReady(false));
+      introVideo.addEventListener("loadeddata", () => setIntroReady(true));
+      introVideo.addEventListener("playing", () => setIntroReady(true));
+      introVideo.addEventListener("error", () => setIntroReady(false));
       if (introAudio) {
         try {
           introAudio.currentTime = 0;
@@ -1000,6 +1018,7 @@
       }
       introVideo.addEventListener("ended", advanceIntroVideo);
       introVideo.addEventListener("error", advanceIntroVideo);
+      playIntroVideo();
     }
     let score = 0;
     let streak = 0;
