@@ -1934,6 +1934,9 @@
     let everLeftHouse = false;
     let wasInHouse = false;
     let houseBounds = null;
+    let sanctuaryBounds = null;
+    let sanctuaryModel = null;
+    let sanctuaryClickProxy = null;
     let houseDoorPivot = null;
     let houseDoorAngle = 0;
     const houseDoorOpenAngle = -Math.PI * 0.5;
@@ -1944,6 +1947,12 @@
       const dx = position.x - houseBounds.x;
       const dz = position.z - houseBounds.z;
       return Math.abs(dx) <= houseBounds.halfWidth && Math.abs(dz) <= houseBounds.halfDepth;
+    };
+    const isInsideSanctuary = (position) => {
+      if (!sanctuaryBounds || !position) return false;
+      const dx = position.x - sanctuaryBounds.x;
+      const dz = position.z - sanctuaryBounds.z;
+      return Math.abs(dx) <= sanctuaryBounds.halfWidth && Math.abs(dz) <= sanctuaryBounds.halfDepth;
     };
     const loadCharacterClick = () => {
       try {
@@ -2466,6 +2475,23 @@
       poppyProximity.nextAt = now + poppyProximity.cooldownMs;
       playPoppyAudio();
     };
+    const handleSanctuaryClick = (event) => {
+      if (!sanctuaryModel && !sanctuaryClickProxy) return;
+      if (isUiTarget(event.target)) return;
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      camera.updateMatrixWorld();
+      const target = sanctuaryClickProxy || sanctuaryModel;
+      target.updateWorldMatrix(true, true);
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(target, true);
+      if (!hits.length) return;
+      if (!bipedState.model) return;
+      bipedHiddenInSanctuary = false;
+      bipedSanctuaryReveal = true;
+      bipedState.group.visible = true;
+    };
     const handleCharacterClick = (event) => {
       if (!playerState.group || characterClickedToday) return;
       if (isUiTarget(event.target)) return;
@@ -2485,6 +2511,7 @@
     window.addEventListener("keydown", (event) => setMoveKey(event, true));
     window.addEventListener("keydown", handlePoppySpace);
     window.addEventListener("keyup", (event) => setMoveKey(event, false));
+    window.addEventListener("pointerdown", handleSanctuaryClick);
     window.addEventListener("pointerdown", handleCharacterClick);
     window.addEventListener("blur", resetMoveState);
     document.addEventListener("visibilitychange", () => {
@@ -3913,6 +3940,14 @@
       modelBasePosition: null,
       phase: Math.random() * Math.PI * 2
     };
+    const bipedHomeTarget = new THREE.Vector3();
+    const bipedHomeArrival = 2.5;
+    let bipedHomeLastDist = Infinity;
+    let bipedHomeStallAt = -1;
+    const bipedHomeStallDelay = 1.4;
+    const bipedHomeStallEpsilon = 0.1;
+    let bipedHiddenInSanctuary = false;
+    let bipedSanctuaryReveal = false;
     bipedState.group.visible = false;
     scene.add(bipedState.group);
 
@@ -5627,7 +5662,99 @@
       );
     };
 
+    const loadCelestialSanctuary = () => {
+      if (!THREE.GLTFLoader) {
+        console.warn("GLTFLoader missing. Skipping celestial sanctuary.");
+        return;
+      }
+      const loader = new THREE.GLTFLoader();
+      const sanctuaryUrl = new URL(
+        "Meshy_AI_Celestial_Sanctuary_0114155444_texture.glb",
+        window.location.href
+      ).href;
+      loader.load(
+        sanctuaryUrl,
+        (gltf) => {
+          const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!model) {
+            console.warn("Celestial sanctuary GLB loaded without a scene.");
+            return;
+          }
+          model.traverse((child) => {
+            if (!child.isMesh) return;
+            child.castShadow = false;
+            child.receiveShadow = false;
+            child.frustumCulled = false;
+            if (child.material) {
+              const mats = Array.isArray(child.material) ? child.material : [child.material];
+              mats.forEach((mat) => {
+                if (!mat) return;
+                mat.side = THREE.FrontSide;
+              });
+            }
+          });
+
+          const targetHeight = 80;
+          const tempBox = new THREE.Box3().setFromObject(model);
+          const tempSize = new THREE.Vector3();
+          tempBox.getSize(tempSize);
+          if (tempSize.y > 0) {
+            const scale = targetHeight / tempSize.y;
+            model.scale.setScalar(scale);
+          }
+
+          model.updateWorldMatrix(true, true);
+          const box = new THREE.Box3().setFromObject(model);
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+          const targetX = 140;
+          const targetZ = -120;
+          const groundY = playerState.groundY;
+          const yOffset = groundY - box.min.y;
+          model.position.set(targetX - center.x, yOffset, targetZ - center.z);
+          model.updateWorldMatrix(true, true);
+
+          const placedBox = new THREE.Box3().setFromObject(model);
+          const placedCenter = new THREE.Vector3();
+          const placedSize = new THREE.Vector3();
+          placedBox.getCenter(placedCenter);
+          placedBox.getSize(placedSize);
+          sanctuaryBounds = {
+            x: placedCenter.x,
+            z: placedCenter.z,
+            halfWidth: placedSize.x * 0.45,
+            halfDepth: placedSize.z * 0.45
+          };
+          sanctuaryModel = model;
+          if (sanctuaryClickProxy) {
+            scene.remove(sanctuaryClickProxy);
+          }
+          const clickMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            depthTest: false
+          });
+          sanctuaryClickProxy = new THREE.Mesh(
+            new THREE.BoxGeometry(placedSize.x, placedSize.y, placedSize.z),
+            clickMaterial
+          );
+          sanctuaryClickProxy.position.copy(placedCenter);
+          sanctuaryClickProxy.name = "sanctuaryClickProxy";
+          scene.add(sanctuaryClickProxy);
+
+          scene.add(model);
+        },
+        undefined,
+        (error) => {
+          console.warn("Failed to load celestial sanctuary GLB.", error);
+        }
+      );
+    };
+
     loadHauntedHouse();
+    loadCelestialSanctuary();
     if (playerState.group) {
       wasInHouse = isInsideHouse(playerState.group.position);
       everLeftHouse = !wasInHouse;
@@ -5975,20 +6102,61 @@
         }
         const bipedPos = bipedState.group.position;
         let tracking = false;
-        const hasTarget = bipedState.chaseTreasures &&
-          getNearestSparkle(bipedPos.x, bipedPos.z, bipedTargetWorld);
-        if (hasTarget) {
-          tracking = true;
-          const dx = bipedTargetWorld.x - bipedPos.x;
-          const dz = bipedTargetWorld.z - bipedPos.z;
+        let homing = false;
+        const homeBounds = sanctuaryBounds || houseBounds;
+        if (inHouse && homeBounds) {
+          homing = true;
+          bipedHomeTarget.set(homeBounds.x, bipedState.center.y, homeBounds.z);
+          const dx = bipedHomeTarget.x - bipedPos.x;
+          const dz = bipedHomeTarget.z - bipedPos.z;
           const dist = Math.hypot(dx, dz);
-          if (dist > 0.5) {
+          if (dist > bipedHomeArrival) {
             const step = Math.min(dist, bipedState.trackSpeed * delta);
             bipedPos.x += (dx / dist) * step;
             bipedPos.z += (dz / dist) * step;
+          } else {
+            bipedPos.x = bipedHomeTarget.x;
+            bipedPos.z = bipedHomeTarget.z;
           }
           bipedPos.y = bipedState.center.y + Math.sin(t * 2.2) * bipedState.bob;
-          bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+          if (dist > 0.001) {
+            bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+          }
+          if (dist <= bipedHomeArrival) {
+            bipedHomeLastDist = dist;
+            bipedHomeStallAt = -1;
+          } else {
+            const madeProgress = dist < bipedHomeLastDist - bipedHomeStallEpsilon;
+            if (madeProgress) {
+              bipedHomeLastDist = dist;
+              bipedHomeStallAt = -1;
+            } else if (bipedHomeStallAt < 0) {
+              bipedHomeStallAt = t;
+            } else if (t - bipedHomeStallAt > bipedHomeStallDelay) {
+              bipedPos.x = bipedHomeTarget.x;
+              bipedPos.z = bipedHomeTarget.z;
+              bipedHomeLastDist = 0;
+              bipedHomeStallAt = -1;
+            }
+          }
+        } else {
+          bipedHomeLastDist = Infinity;
+          bipedHomeStallAt = -1;
+          const hasTarget = bipedState.chaseTreasures &&
+            getNearestSparkle(bipedPos.x, bipedPos.z, bipedTargetWorld);
+          if (hasTarget) {
+            tracking = true;
+            const dx = bipedTargetWorld.x - bipedPos.x;
+            const dz = bipedTargetWorld.z - bipedPos.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.5) {
+              const step = Math.min(dist, bipedState.trackSpeed * delta);
+              bipedPos.x += (dx / dist) * step;
+              bipedPos.z += (dz / dist) * step;
+            }
+            bipedPos.y = bipedState.center.y + Math.sin(t * 2.2) * bipedState.bob;
+            bipedState.group.rotation.y = Math.atan2(dx, dz) + bipedState.faceOffset;
+          }
         }
         if (bipedState.model && bipedState.modelBasePosition) {
           bipedState.model.position.copy(bipedState.modelBasePosition);
@@ -5997,12 +6165,29 @@
           bipedState.rootBone.position.x = bipedState.rootBoneBase.x;
           bipedState.rootBone.position.z = bipedState.rootBoneBase.z;
         }
-        if (!tracking) {
+        if (!tracking && !homing) {
           const x = bipedState.center.x;
           const z = bipedState.center.z;
           const y = bipedState.center.y + Math.sin(t * 2.2) * bipedState.bob;
           bipedState.group.position.set(x, y, z);
           bipedState.group.rotation.y = bipedState.faceOffset;
+        }
+        if (sanctuaryBounds) {
+          bipedState.group.getWorldPosition(bipedWorldPosition);
+          const insideSanctuary = isInsideSanctuary(bipedWorldPosition);
+          if (insideSanctuary && !bipedSanctuaryReveal) {
+            bipedHiddenInSanctuary = true;
+            bipedState.group.visible = false;
+          } else if (bipedHiddenInSanctuary) {
+            bipedHiddenInSanctuary = false;
+            bipedState.group.visible = true;
+          }
+          if (bipedSanctuaryReveal && !insideSanctuary) {
+            bipedSanctuaryReveal = false;
+          }
+        } else if (bipedHiddenInSanctuary) {
+          bipedHiddenInSanctuary = false;
+          bipedState.group.visible = true;
         }
       }
       if (flowerCreatureState.group) {
