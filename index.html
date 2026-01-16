@@ -3546,6 +3546,80 @@
     const nearGlowPoints = new THREE.Points(nearGeometry, nearGlowMaterial);
     scene.add(nearGlowPoints);
 
+    const galaxyGroups = [];
+    const galaxyBaseRotation = new THREE.Euler(-0.55, Math.PI * 0.12, 0.12);
+    const galaxyStackOffset = 120;
+    const galaxyCount = 1200;
+    const galaxyRadius = 120;
+    const galaxyArms = 4;
+    const galaxyPositions = new Float32Array(galaxyCount * 3);
+    const galaxyColors = new Float32Array(galaxyCount * 3);
+    const galaxyColor = new THREE.Color();
+    const galaxyCoreColor = new THREE.Color();
+    for (let i = 0; i < galaxyCount; i++) {
+      const i3 = i * 3;
+      const arm = i % galaxyArms;
+      const armAngle = (arm / galaxyArms) * Math.PI * 2;
+      const armHue = [0.62, 0.98, 0.12, 0.78][arm % 4];
+      const r = Math.pow(Math.random(), 0.55) * galaxyRadius;
+      const spin = r * 0.04;
+      const angle = armAngle + spin + randomRange(-0.35, 0.35);
+      const scatter = 1 - r / galaxyRadius;
+      const x = Math.cos(angle) * r + randomRange(-6, 6) * scatter;
+      const z = Math.sin(angle) * r + randomRange(-6, 6) * scatter;
+      const y = randomRange(-6, 6) * scatter + randomRange(-1.5, 1.5);
+      galaxyPositions[i3] = x;
+      galaxyPositions[i3 + 1] = y;
+      galaxyPositions[i3 + 2] = z;
+      const mix = r / galaxyRadius;
+      galaxyColor.setHSL(
+        (armHue + mix * 0.12) % 1,
+        0.85 + (1 - mix) * 0.1,
+        0.55 + (1 - mix) * 0.25
+      );
+      galaxyCoreColor.setHSL(0.02 + mix * 0.08, 0.95, 0.7);
+      galaxyColor.lerp(galaxyCoreColor, (1 - mix) * 0.4);
+      galaxyColors[i3] = galaxyColor.r;
+      galaxyColors[i3 + 1] = galaxyColor.g;
+      galaxyColors[i3 + 2] = galaxyColor.b;
+    }
+    const galaxyGeometry = new THREE.BufferGeometry();
+    galaxyGeometry.setAttribute("position", new THREE.BufferAttribute(galaxyPositions, 3));
+    galaxyGeometry.setAttribute("color", new THREE.BufferAttribute(galaxyColors, 3));
+    const galaxyMaterial = new THREE.PointsMaterial({
+      size: 2.6,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexColors: true
+    });
+    const galaxyGlowMaterial = new THREE.PointsMaterial({
+      size: 5.2,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexColors: true
+    });
+    const makeGalaxyGroup = (offsetY, direction) => {
+      const group = new THREE.Group();
+      group.position.set(0, 240 + offsetY, -260);
+      group.rotation.copy(galaxyBaseRotation);
+      group.scale.setScalar(0.8);
+      group.visible = false;
+      const points = new THREE.Points(galaxyGeometry, galaxyMaterial);
+      const glow = new THREE.Points(galaxyGeometry, galaxyGlowMaterial);
+      group.add(points, glow);
+      scene.add(group);
+      galaxyGroups.push({ group, points, glow, direction });
+    };
+    makeGalaxyGroup(galaxyStackOffset, 1);
+    makeGalaxyGroup(-galaxyStackOffset, -1);
+    let galaxyOpacity = 0;
+
     const makeLavaTextures = () => {
       const size = 512;
       const baseCanvas = document.createElement("canvas");
@@ -5511,6 +5585,25 @@
       if (points.visible !== morphVisible) {
         points.visible = morphVisible;
         violetPoints.visible = morphVisible;
+      }
+      const galaxyTarget = playerMoving ? 1 : 0;
+      const galaxyLerp = Math.min(1, delta * 1.6);
+      galaxyOpacity += (galaxyTarget - galaxyOpacity) * galaxyLerp;
+      const galaxyVisible = galaxyOpacity > 0.02;
+      galaxyGroups.forEach((entry) => {
+        if (entry.group.visible !== galaxyVisible) {
+          entry.group.visible = galaxyVisible;
+        }
+      });
+      galaxyMaterial.opacity = galaxyOpacity * 0.85;
+      galaxyGlowMaterial.opacity = galaxyOpacity * 0.35;
+      if (galaxyVisible) {
+        galaxyGroups.forEach((entry) => {
+          const spin = entry.direction;
+          entry.group.rotation.copy(galaxyBaseRotation);
+          entry.points.rotation.y -= delta * 0.08 * spin;
+          entry.glow.rotation.y += delta * 0.05 * spin;
+        });
       }
       if (controlsBlockedToday) {
         updateTitleHintText(hintLockedText);
