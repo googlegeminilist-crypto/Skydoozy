@@ -3548,7 +3548,10 @@
 
     const galaxyGroups = [];
     const galaxyBaseRotation = new THREE.Euler(-0.55, Math.PI * 0.12, 0.12);
-    const galaxyStackOffset = 120;
+    const galaxySideOffset = 0.9;
+    const galaxyGap = 40;
+    const galaxyYOffset = 0;
+    const galaxyDepthOffset = -140;
     const galaxyCount = 1200;
     const galaxyRadius = 120;
     const galaxyArms = 4;
@@ -3604,20 +3607,20 @@
       depthWrite: false,
       vertexColors: true
     });
-    const makeGalaxyGroup = (offsetY, direction) => {
+    const makeGalaxyGroup = (side, direction) => {
       const group = new THREE.Group();
-      group.position.set(0, 240 + offsetY, -260);
+      group.position.set(0, 0, 0);
       group.rotation.copy(galaxyBaseRotation);
       group.scale.setScalar(0.8);
       group.visible = false;
       const points = new THREE.Points(galaxyGeometry, galaxyMaterial);
       const glow = new THREE.Points(galaxyGeometry, galaxyGlowMaterial);
       group.add(points, glow);
-      scene.add(group);
-      galaxyGroups.push({ group, points, glow, direction });
+      camera.add(group);
+      galaxyGroups.push({ group, points, glow, direction, side });
     };
-    makeGalaxyGroup(galaxyStackOffset, 1);
-    makeGalaxyGroup(-galaxyStackOffset, -1);
+    makeGalaxyGroup(-1, 1);
+    makeGalaxyGroup(1, -1);
     let galaxyOpacity = 0;
 
     const makeLavaTextures = () => {
@@ -5598,8 +5601,18 @@
       galaxyMaterial.opacity = galaxyOpacity * 0.85;
       galaxyGlowMaterial.opacity = galaxyOpacity * 0.35;
       if (galaxyVisible) {
+        const rainbowWidth = (rainbowGroup.userData.baseWidth || 1) *
+          (rainbowGroup.scale ? rainbowGroup.scale.x : 1);
+        const offsetX = rainbowWidth * galaxySideOffset + galaxyGap;
+        const offsetY = rainbowWidth * galaxyYOffset;
+        const offsetZ = galaxyDepthOffset;
         galaxyGroups.forEach((entry) => {
           const spin = entry.direction;
+          entry.group.position.set(
+            rainbowGroup.position.x + offsetX * entry.side,
+            rainbowGroup.position.y + offsetY,
+            rainbowGroup.position.z + offsetZ
+          );
           entry.group.rotation.copy(galaxyBaseRotation);
           entry.points.rotation.y -= delta * 0.08 * spin;
           entry.glow.rotation.y += delta * 0.05 * spin;
