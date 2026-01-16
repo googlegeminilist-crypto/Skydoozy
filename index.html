@@ -3565,7 +3565,7 @@
     const nearGlowPoints = new THREE.Points(nearGeometry, nearGlowMaterial);
     scene.add(nearGlowPoints);
 
-    const walkingStarCount = 420;
+    const walkingStarCount = 900;
     const walkingStarPositions = new Float32Array(walkingStarCount * 3);
     const walkingStarColors = new Float32Array(walkingStarCount * 3);
     const walkingStarBaseColors = new Float32Array(walkingStarCount * 3);
@@ -3612,6 +3612,57 @@
     walkingStarGroup.visible = false;
     walkingStarGroup.add(walkingStarPoints);
     scene.add(walkingStarGroup);
+
+    const milkyWayCount = 3200;
+    const milkyWayPositions = new Float32Array(milkyWayCount * 3);
+    const milkyWayColors = new Float32Array(milkyWayCount * 3);
+    const milkyWayBaseColors = new Float32Array(milkyWayCount * 3);
+    const milkyWayPhase = new Float32Array(milkyWayCount);
+    const milkyWaySpeed = new Float32Array(milkyWayCount);
+    const milkyWayRadiusMin = 520;
+    const milkyWayRadiusMax = 980;
+    const milkyWayBandHeight = 140;
+    const milkyWayRed = new THREE.Color(0xff4a4a);
+    const milkyWayBlue = new THREE.Color(0x4a87ff);
+    for (let i = 0; i < milkyWayCount; i++) {
+      const i3 = i * 3;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = milkyWayRadiusMin + Math.random() * (milkyWayRadiusMax - milkyWayRadiusMin);
+      const bandBias = Math.random() * Math.random();
+      const y = (Math.random() - 0.5) * milkyWayBandHeight * (0.35 + bandBias);
+      milkyWayPositions[i3] = Math.cos(angle) * radius;
+      milkyWayPositions[i3 + 1] = y;
+      milkyWayPositions[i3 + 2] = Math.sin(angle) * radius;
+      const baseColor = Math.random() > 0.55 ? milkyWayBlue : milkyWayRed;
+      milkyWayBaseColors[i3] = baseColor.r;
+      milkyWayBaseColors[i3 + 1] = baseColor.g;
+      milkyWayBaseColors[i3 + 2] = baseColor.b;
+      milkyWayColors[i3] = baseColor.r;
+      milkyWayColors[i3 + 1] = baseColor.g;
+      milkyWayColors[i3 + 2] = baseColor.b;
+      milkyWayPhase[i] = Math.random() * Math.PI * 2;
+      milkyWaySpeed[i] = 0.8 + Math.random() * 1.8;
+    }
+    const milkyWayGeometry = new THREE.BufferGeometry();
+    milkyWayGeometry.setAttribute("position", new THREE.BufferAttribute(milkyWayPositions, 3));
+    milkyWayGeometry.setAttribute("color", new THREE.BufferAttribute(milkyWayColors, 3));
+    const milkyWayMaterial = new THREE.PointsMaterial({
+      size: 1.9,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.75,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const milkyWayPoints = new THREE.Points(milkyWayGeometry, milkyWayMaterial);
+    milkyWayPoints.frustumCulled = false;
+    const milkyWayGroup = new THREE.Group();
+    milkyWayGroup.visible = false;
+    milkyWayGroup.rotation.x = -0.4;
+    milkyWayGroup.rotation.z = 0.2;
+    milkyWayGroup.add(milkyWayPoints);
+    scene.add(milkyWayGroup);
 
     const galaxyGroups = [];
     const galaxyBaseRotation = new THREE.Euler(-0.55, Math.PI * 0.12, 0.12);
@@ -5849,6 +5900,22 @@
             starColors.array[i3 + 2] = walkingStarBaseColors[i3 + 2] * boost;
           }
           starColors.needsUpdate = true;
+        }
+      }
+      if (milkyWayGroup) {
+        milkyWayGroup.visible = playerMoving;
+        if (playerMoving) {
+          milkyWayGroup.position.copy(camera.position);
+          const bandColors = milkyWayGeometry.getAttribute("color");
+          for (let i = 0; i < milkyWayCount; i++) {
+            const i3 = i * 3;
+            const pulse = 0.35 + 0.65 * Math.sin(t * milkyWaySpeed[i] + milkyWayPhase[i]);
+            const boost = 0.45 + pulse * 0.55;
+            bandColors.array[i3] = milkyWayBaseColors[i3] * boost;
+            bandColors.array[i3 + 1] = milkyWayBaseColors[i3 + 1] * boost;
+            bandColors.array[i3 + 2] = milkyWayBaseColors[i3 + 2] * boost;
+          }
+          bandColors.needsUpdate = true;
         }
       }
 
