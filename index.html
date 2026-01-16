@@ -51,7 +51,7 @@
     body.intro-open {
       overflow: hidden;
     }
-    body.intro-open .matrix-window {
+    body.intro-open > :not(.intro-overlay) {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
@@ -805,7 +805,7 @@
 
   gtag('config', 'G-YGDQKKMR2C');
 </script>
-<body>
+<body class="intro-open">
   <div class="app-note">
     <a href="https://apps.apple.com/dk/app/skybammy/id6755389661" target="_blank" rel="noopener noreferrer">
       Download Skybammy App On Appl Store for more Fun Games: https://apps.apple.com/dk/app/skybammy/id6755389661
@@ -3565,6 +3565,54 @@
     const nearGlowPoints = new THREE.Points(nearGeometry, nearGlowMaterial);
     scene.add(nearGlowPoints);
 
+    const walkingStarCount = 420;
+    const walkingStarPositions = new Float32Array(walkingStarCount * 3);
+    const walkingStarColors = new Float32Array(walkingStarCount * 3);
+    const walkingStarBaseColors = new Float32Array(walkingStarCount * 3);
+    const walkingStarPhase = new Float32Array(walkingStarCount);
+    const walkingStarSpeed = new Float32Array(walkingStarCount);
+    const walkingStarRadius = 680;
+    const redStar = new THREE.Color(0xff3b3b);
+    const blueStar = new THREE.Color(0x4da6ff);
+    for (let i = 0; i < walkingStarCount; i++) {
+      const i3 = i * 3;
+      const r = walkingStarRadius * (0.7 + Math.random() * 0.3);
+      const cosTheta = Math.random();
+      const theta = Math.acos(cosTheta);
+      const phi = Math.random() * Math.PI * 2;
+      const sinTheta = Math.sin(theta);
+      walkingStarPositions[i3] = Math.cos(phi) * sinTheta * r;
+      walkingStarPositions[i3 + 1] = cosTheta * r;
+      walkingStarPositions[i3 + 2] = Math.sin(phi) * sinTheta * r;
+      const baseColor = Math.random() > 0.5 ? redStar : blueStar;
+      walkingStarBaseColors[i3] = baseColor.r;
+      walkingStarBaseColors[i3 + 1] = baseColor.g;
+      walkingStarBaseColors[i3 + 2] = baseColor.b;
+      walkingStarColors[i3] = baseColor.r;
+      walkingStarColors[i3 + 1] = baseColor.g;
+      walkingStarColors[i3 + 2] = baseColor.b;
+      walkingStarPhase[i] = Math.random() * Math.PI * 2;
+      walkingStarSpeed[i] = 1.4 + Math.random() * 2.2;
+    }
+    const walkingStarGeometry = new THREE.BufferGeometry();
+    walkingStarGeometry.setAttribute("position", new THREE.BufferAttribute(walkingStarPositions, 3));
+    walkingStarGeometry.setAttribute("color", new THREE.BufferAttribute(walkingStarColors, 3));
+    const walkingStarMaterial = new THREE.PointsMaterial({
+      size: 2.6,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.85,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const walkingStarPoints = new THREE.Points(walkingStarGeometry, walkingStarMaterial);
+    walkingStarPoints.frustumCulled = false;
+    const walkingStarGroup = new THREE.Group();
+    walkingStarGroup.visible = false;
+    walkingStarGroup.add(walkingStarPoints);
+    scene.add(walkingStarGroup);
+
     const galaxyGroups = [];
     const galaxyBaseRotation = new THREE.Euler(-0.55, Math.PI * 0.12, 0.12);
     const galaxySideOffset = 0.9;
@@ -5786,6 +5834,23 @@
       }
     }
     nearPos.needsUpdate = true;
+
+      if (walkingStarGroup) {
+        walkingStarGroup.visible = playerMoving;
+        if (playerMoving) {
+          walkingStarGroup.position.copy(camera.position);
+          const starColors = walkingStarGeometry.getAttribute("color");
+          for (let i = 0; i < walkingStarCount; i++) {
+            const i3 = i * 3;
+            const pulse = 0.4 + 0.6 * Math.sin(t * walkingStarSpeed[i] + walkingStarPhase[i]);
+            const boost = 0.55 + pulse * 0.45;
+            starColors.array[i3] = walkingStarBaseColors[i3] * boost;
+            starColors.array[i3 + 1] = walkingStarBaseColors[i3 + 1] * boost;
+            starColors.array[i3 + 2] = walkingStarBaseColors[i3 + 2] * boost;
+          }
+          starColors.needsUpdate = true;
+        }
+      }
 
       scene.rotation.set(0, 0, 0);
       grid.rotation.y = 0;
