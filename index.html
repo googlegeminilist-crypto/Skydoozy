@@ -3597,8 +3597,9 @@
     const walkingStarGeometry = new THREE.BufferGeometry();
     walkingStarGeometry.setAttribute("position", new THREE.BufferAttribute(walkingStarPositions, 3));
     walkingStarGeometry.setAttribute("color", new THREE.BufferAttribute(walkingStarColors, 3));
+    const walkingStarBaseSize = 2.6;
     const walkingStarMaterial = new THREE.PointsMaterial({
-      size: 2.6,
+      size: walkingStarBaseSize,
       sizeAttenuation: true,
       transparent: true,
       opacity: 0.85,
@@ -3646,8 +3647,9 @@
     const milkyWayGeometry = new THREE.BufferGeometry();
     milkyWayGeometry.setAttribute("position", new THREE.BufferAttribute(milkyWayPositions, 3));
     milkyWayGeometry.setAttribute("color", new THREE.BufferAttribute(milkyWayColors, 3));
+    const milkyWayBaseSize = 1.9;
     const milkyWayMaterial = new THREE.PointsMaterial({
-      size: 1.9,
+      size: milkyWayBaseSize,
       sizeAttenuation: true,
       transparent: true,
       opacity: 0.75,
@@ -5893,13 +5895,20 @@
           const starColors = walkingStarGeometry.getAttribute("color");
           for (let i = 0; i < walkingStarCount; i++) {
             const i3 = i * 3;
-            const pulse = 0.4 + 0.6 * Math.sin(t * walkingStarSpeed[i] + walkingStarPhase[i]);
-            const boost = 0.55 + pulse * 0.45;
+            const pulse = 0.5 + 0.5 * Math.sin(t * walkingStarSpeed[i] + walkingStarPhase[i]);
+            const sparkle = Math.max(
+              0,
+              Math.sin(t * (walkingStarSpeed[i] * 2.8 + 6) + walkingStarPhase[i] * 1.7)
+            );
+            const boost = Math.min(1.25, 0.35 + pulse * 0.45 + sparkle * 0.45);
             starColors.array[i3] = walkingStarBaseColors[i3] * boost;
             starColors.array[i3 + 1] = walkingStarBaseColors[i3 + 1] * boost;
             starColors.array[i3 + 2] = walkingStarBaseColors[i3 + 2] * boost;
           }
           starColors.needsUpdate = true;
+          const starSparkle = 0.75 + 0.25 * Math.sin(t * 4.6);
+          walkingStarMaterial.size = walkingStarBaseSize * starSparkle;
+          walkingStarMaterial.opacity = Math.min(1, 0.6 + starSparkle * 0.35);
         }
       }
       if (milkyWayGroup) {
@@ -5909,13 +5918,17 @@
           const bandColors = milkyWayGeometry.getAttribute("color");
           for (let i = 0; i < milkyWayCount; i++) {
             const i3 = i * 3;
-            const pulse = 0.35 + 0.65 * Math.sin(t * milkyWaySpeed[i] + milkyWayPhase[i]);
-            const boost = 0.45 + pulse * 0.55;
+            const pulse = 0.45 + 0.55 * Math.sin(t * milkyWaySpeed[i] + milkyWayPhase[i]);
+            const sparkle = Math.max(0, Math.sin(t * (milkyWaySpeed[i] * 2.1 + 4.5) + milkyWayPhase[i]));
+            const boost = Math.min(1.2, 0.3 + pulse * 0.5 + sparkle * 0.4);
             bandColors.array[i3] = milkyWayBaseColors[i3] * boost;
             bandColors.array[i3 + 1] = milkyWayBaseColors[i3 + 1] * boost;
             bandColors.array[i3 + 2] = milkyWayBaseColors[i3 + 2] * boost;
           }
           bandColors.needsUpdate = true;
+          const bandSparkle = 0.8 + 0.2 * Math.sin(t * 3.2 + 0.6);
+          milkyWayMaterial.size = milkyWayBaseSize * bandSparkle;
+          milkyWayMaterial.opacity = Math.min(1, 0.55 + bandSparkle * 0.3);
         }
       }
 
