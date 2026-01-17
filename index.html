@@ -4220,7 +4220,7 @@
             }
           });
 
-          const targetHeight = 42;
+          const targetHeight = 80;
           const tempBox = new THREE.Box3().setFromObject(model);
           const tempSize = new THREE.Vector3();
           tempBox.getSize(tempSize);
@@ -4245,14 +4245,21 @@
 
           const count = 8;
           const placed = [];
-          const minSpacing = 140;
+          const minSpacing = 120;
           const pickPosition = () => {
             let tries = 0;
             let x = 0;
             let z = 0;
             do {
-              x = randomRange(-260, 260);
-              z = randomRange(-260, 140);
+              const useBackBand = Math.random() < 0.45;
+              if (useBackBand) {
+                x = randomRange(-150, 150);
+                z = randomRange(-300, -180);
+              } else {
+                const useLeft = Math.random() < 0.5;
+                x = useLeft ? randomRange(-300, -180) : randomRange(180, 300);
+                z = randomRange(-280, -120);
+              }
               tries += 1;
             } while (
               tries < 80 &&
@@ -4274,7 +4281,7 @@
               pos.z
             );
             clone.rotation.y = randomRange(0, Math.PI * 2);
-            const scale = randomRange(1.6, 2.2);
+            const scale = randomRange(2.2, 2.8);
             clone.scale.multiplyScalar(scale);
             gladeDecorState.group.add(clone);
             gladeDecorState.instances.push(clone);
