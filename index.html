@@ -4187,6 +4187,7 @@
       sparkles: []
     };
     jungleGroup.add(gladeDecorState.group);
+    gladeDecorState.group.visible = false;
 
     const loadGladeDecor = () => {
       if (!THREE.GLTFLoader) {
@@ -5838,6 +5839,9 @@
         }
       }
       grid.visible = playerMoving;
+      if (gladeDecorState.group.visible !== playerMoving) {
+        gladeDecorState.group.visible = playerMoving;
+      }
       const morphVisible = !playerMoving;
       if (points.visible !== morphVisible) {
         points.visible = morphVisible;
