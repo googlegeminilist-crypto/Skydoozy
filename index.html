@@ -1022,6 +1022,7 @@
     }
     let score = 0;
     let streak = 0;
+    let walkUnlocked = false;
     const streakWords = [
       "Zero",
       "One",
@@ -1067,6 +1068,7 @@
     };
     setStreak(streak);
     const hintDefaultText = "Can you find the character you can control. If you find him, collect treasures from the rainbow. Hint,its Green!";
+    const hintUnlockText = "Click the haunted house to start walking.";
     const hintWalkingText = "His home, please enter after walking.";
     const hintLockedText = "Keep playing to improve your memory. More words will be coming soon.";
     const updateTitleHintText = (text) => {
@@ -1074,7 +1076,10 @@
       if (titleHint.textContent === text) return;
       titleHint.textContent = text;
     };
-    updateTitleHintText(hintDefaultText);
+    const updateIdleHintText = () => {
+      updateTitleHintText(walkUnlocked ? hintDefaultText : hintUnlockText);
+    };
+    updateIdleHintText();
 
     const audioWaveCtx = audioWave ? audioWave.getContext("2d") : null;
     const playlist = bgAudio
@@ -1933,7 +1938,16 @@
     let hasWalked = false;
     let everLeftHouse = false;
     let wasInHouse = false;
-    let houseBounds = null;
+    const houseSpawn = { x: 0, z: -120 };
+    const defaultHouseBounds = {
+      x: houseSpawn.x,
+      z: houseSpawn.z,
+      halfWidth: 35,
+      halfDepth: 25
+    };
+    let houseBounds = defaultHouseBounds;
+    let houseModel = null;
+    let houseClickProxy = null;
     let sanctuaryBounds = null;
     let sanctuaryModel = null;
     let sanctuaryClickProxy = null;
@@ -1973,7 +1987,7 @@
         hasWalked = false;
         everLeftHouse = false;
         wasInHouse = false;
-        updateTitleHintText(hintDefaultText);
+        updateIdleHintText();
         try {
           localStorage.removeItem(controlUntilKey);
           localStorage.removeItem(lastMoveKey);
@@ -1991,7 +2005,7 @@
       hasWalked = false;
       everLeftHouse = false;
       wasInHouse = false;
-      updateTitleHintText(hintDefaultText);
+      updateIdleHintText();
       try {
         localStorage.removeItem(controlUntilKey);
         localStorage.removeItem(lastMoveKey);
@@ -2043,6 +2057,12 @@
         // Ignore storage failures.
       }
     };
+    const unlockWalking = () => {
+      if (walkUnlocked) return;
+      walkUnlocked = true;
+      sparklesEnabled = true;
+      updateIdleHintText();
+    };
     const persistLastMove = (timeMs) => {
       try {
         localStorage.setItem(lastMoveKey, `${timeMs}`);
@@ -2081,7 +2101,7 @@
     setInterval(() => updateLockTimer(Date.now()), 1000);
     if (characterClickedToday) {
       sparklesEnabled = true;
-      updateTitleHintText(hintDefaultText);
+      updateIdleHintText();
     }
 
     if (!window.THREE) {
@@ -2416,6 +2436,10 @@
         return;
       }
       const typingTarget = isTypingTarget(event.target);
+      if (!walkUnlocked) {
+        if (!typingTarget) event.preventDefault();
+        return;
+      }
       if (controlsBlockedToday) {
         if (!typingTarget) event.preventDefault();
         return;
@@ -2492,6 +2516,21 @@
       bipedSanctuaryReveal = true;
       bipedState.group.visible = true;
     };
+    const handleHouseClick = (event) => {
+      if (walkUnlocked) return;
+      if (!houseModel && !houseClickProxy) return;
+      if (isUiTarget(event.target)) return;
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      camera.updateMatrixWorld();
+      const target = houseClickProxy || houseModel;
+      target.updateWorldMatrix(true, true);
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(target, true);
+      if (!hits.length) return;
+      unlockWalking();
+    };
     const handleCharacterClick = (event) => {
       if (!playerState.group || characterClickedToday) return;
       if (isUiTarget(event.target)) return;
@@ -2506,12 +2545,13 @@
       if (!hits.length) return;
       markCharacterClicked();
       sparklesEnabled = true;
-      updateTitleHintText(hintDefaultText);
+      updateIdleHintText();
     };
     window.addEventListener("keydown", (event) => setMoveKey(event, true));
     window.addEventListener("keydown", handlePoppySpace);
     window.addEventListener("keyup", (event) => setMoveKey(event, false));
     window.addEventListener("pointerdown", handleSanctuaryClick);
+    window.addEventListener("pointerdown", handleHouseClick);
     window.addEventListener("pointerdown", handleCharacterClick);
     window.addEventListener("blur", resetMoveState);
     document.addEventListener("visibilitychange", () => {
@@ -3924,7 +3964,7 @@
       model: null,
       mixer: null,
       action: null,
-      center: new THREE.Vector3(0, playerState.groundY + 2, -20),
+      center: new THREE.Vector3(houseSpawn.x, playerState.groundY + 2, houseSpawn.z),
       radius: new THREE.Vector2(110, 60),
       speed: 0.1,
       bob: 0.6,
@@ -3948,6 +3988,7 @@
     const bipedHomeStallEpsilon = 0.1;
     let bipedHiddenInSanctuary = false;
     let bipedSanctuaryReveal = false;
+    bipedState.group.position.copy(bipedState.center);
     bipedState.group.visible = false;
     scene.add(bipedState.group);
 
@@ -5184,7 +5225,7 @@
       walkerLight.position.set(0, stemHeight + headRadius + 6, 8);
       walker.add(walkerLight);
       walker.scale.setScalar(1.6);
-      walker.position.set(0, playerState.groundY + 4, -60);
+      walker.position.set(houseSpawn.x, playerState.groundY + 4, houseSpawn.z);
       walker.rotation.y = Math.atan2(camera.position.x - walker.position.x, camera.position.z - walker.position.z);
       scene.add(walker);
 
@@ -5512,7 +5553,11 @@
     const buildHouse = () => {
       const houseSize = { width: 78, height: 46, depth: 58 };
       const houseGroup = new THREE.Group();
-      houseGroup.position.set(0, playerState.groundY + houseSize.height * 0.5, -120);
+      houseGroup.position.set(
+        houseSpawn.x,
+        playerState.groundY + houseSize.height * 0.5,
+        houseSpawn.z
+      );
 
       const baseMaterial = new THREE.MeshStandardMaterial({
         color: 0x7b4b2a,
@@ -5597,6 +5642,24 @@
         halfWidth: houseSize.width * 0.45,
         halfDepth: houseSize.depth * 0.43
       };
+      houseModel = houseGroup;
+      if (houseClickProxy) {
+        scene.remove(houseClickProxy);
+      }
+      const clickMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false
+      });
+      houseClickProxy = new THREE.Mesh(
+        new THREE.BoxGeometry(houseSize.width, houseSize.height, houseSize.depth),
+        clickMaterial
+      );
+      houseClickProxy.position.copy(houseGroup.position);
+      houseClickProxy.name = "houseClickProxy";
+      scene.add(houseClickProxy);
 
       return houseGroup;
     };
@@ -5641,8 +5704,8 @@
           const size = new THREE.Vector3();
           box.getCenter(center);
           box.getSize(size);
-          const targetX = 0;
-          const targetZ = -120;
+          const targetX = houseSpawn.x;
+          const targetZ = houseSpawn.z;
           const groundY = playerState.groundY;
           const yOffset = groundY - box.min.y;
           model.position.set(targetX - center.x, yOffset, targetZ - center.z);
@@ -5659,6 +5722,24 @@
             halfWidth: placedSize.x * 0.45,
             halfDepth: placedSize.z * 0.45
           };
+          houseModel = model;
+          if (houseClickProxy) {
+            scene.remove(houseClickProxy);
+          }
+          const clickMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            depthTest: false
+          });
+          houseClickProxy = new THREE.Mesh(
+            new THREE.BoxGeometry(placedSize.x, placedSize.y, placedSize.z),
+            clickMaterial
+          );
+          houseClickProxy.position.copy(placedCenter);
+          houseClickProxy.name = "houseClickProxy";
+          scene.add(houseClickProxy);
 
           scene.add(model);
         },
@@ -5881,7 +5962,7 @@
       } else if (playerMoving) {
         updateTitleHintText(hintWalkingText);
       } else {
-        updateTitleHintText(hintDefaultText);
+        updateIdleHintText();
       }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
       if (playerState.group) {
