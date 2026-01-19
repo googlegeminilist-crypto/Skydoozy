@@ -879,7 +879,7 @@
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <canvas id="fireworks"></canvas>
-  <div class="house-label" id="houseLabel">Click me to control the strange creature</div>
+  <div class="house-label" id="houseLabel">Click me</div>
   <div class="biped-label" id="bipedLabel">My name is Poppy</div>
   <div class="title-stack">
     <div class="matrix-window">
@@ -2224,7 +2224,7 @@
     };
     const updateHouseLabel = (inHouse, playerMoving) => {
       if (!houseLabel) return;
-      if (!houseLabelAnchorReady || !playerMoving || inHouse) {
+      if (!houseLabelAnchorReady || walkUnlocked || playerMoving || inHouse) {
         houseLabel.classList.remove("is-visible");
         return;
       }
