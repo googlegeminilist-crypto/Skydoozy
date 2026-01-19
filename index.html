@@ -149,6 +149,29 @@
       opacity: 1;
     }
 
+    .biped-label {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      padding: 4px 10px;
+      font-size: clamp(0.8rem, 2.2vw, 1rem);
+      letter-spacing: 0.03em;
+      color: #7dff9c;
+      text-shadow:
+        0 0 6px rgba(125, 255, 156, 0.8),
+        0 0 12px rgba(60, 180, 110, 0.6);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+      z-index: 8;
+      white-space: nowrap;
+    }
+
+    .biped-label.is-visible {
+      opacity: 1;
+    }
+
     .title-stack {
       position: relative;
       display: inline-flex;
@@ -857,6 +880,7 @@
   <canvas id="bg"></canvas>
   <canvas id="fireworks"></canvas>
   <div class="house-label" id="houseLabel">Enter After Walking</div>
+  <div class="biped-label" id="bipedLabel">Push Space-Bar Near me For Voice</div>
   <div class="title-stack">
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
@@ -941,6 +965,7 @@
     }
     const lockTimer = document.getElementById("lockTimer");
     const houseLabel = document.getElementById("houseLabel");
+    const bipedLabel = document.getElementById("bipedLabel");
     const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
     const debugOverrideKey = "skydoozy-debug";
     const debugEnabled = (() => {
@@ -2211,6 +2236,37 @@
       houseLabel.style.left = `${x}px`;
       houseLabel.style.top = `${y}px`;
       houseLabel.classList.add("is-visible");
+    };
+    const bipedLabelWorld = new THREE.Vector3();
+    const bipedLabelScreen = new THREE.Vector3();
+    const bipedLabelListener = new THREE.Vector3();
+    const bipedLabelOffset = 8;
+    const updateBipedLabel = () => {
+      if (!bipedLabel || !bipedState.model || !bipedState.group.visible) {
+        if (bipedLabel) bipedLabel.classList.remove("is-visible");
+        return;
+      }
+      if (!playerState.group) {
+        bipedLabel.classList.remove("is-visible");
+        return;
+      }
+      bipedState.group.getWorldPosition(bipedLabelWorld);
+      playerState.group.getWorldPosition(bipedLabelListener);
+      if (bipedLabelWorld.distanceTo(bipedLabelListener) > poppyProximity.radius) {
+        bipedLabel.classList.remove("is-visible");
+        return;
+      }
+      bipedLabelWorld.y += bipedLabelOffset;
+      bipedLabelScreen.copy(bipedLabelWorld).project(camera);
+      if (bipedLabelScreen.z < -1 || bipedLabelScreen.z > 1) {
+        bipedLabel.classList.remove("is-visible");
+        return;
+      }
+      const x = (bipedLabelScreen.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-bipedLabelScreen.y * 0.5 + 0.5) * window.innerHeight;
+      bipedLabel.style.left = `${x}px`;
+      bipedLabel.style.top = `${y}px`;
+      bipedLabel.classList.add("is-visible");
     };
     const moveState = {
       up: false,
@@ -6035,6 +6091,7 @@
       }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
       updateHouseLabel(inHouse, playerMoving);
+      updateBipedLabel();
       if (playerState.group) {
         playerState.group.visible = !inHouse;
       }
