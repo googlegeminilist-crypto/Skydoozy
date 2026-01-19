@@ -125,6 +125,30 @@
         0 0 28px rgba(120, 40, 255, 0.5);
     }
 
+    .house-label {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      padding: 6px 12px;
+      font-size: clamp(1rem, 2.6vw, 1.5rem);
+      letter-spacing: 0.04em;
+      color: #c084ff;
+      text-shadow:
+        0 0 8px rgba(192, 132, 255, 0.9),
+        0 0 16px rgba(192, 132, 255, 0.65),
+        0 0 28px rgba(120, 40, 255, 0.5);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+      z-index: 7;
+      white-space: nowrap;
+    }
+
+    .house-label.is-visible {
+      opacity: 1;
+    }
+
     .title-stack {
       position: relative;
       display: inline-flex;
@@ -832,6 +856,7 @@
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <canvas id="fireworks"></canvas>
+  <div class="house-label" id="houseLabel">Enter After Walking</div>
   <div class="title-stack">
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
@@ -915,6 +940,7 @@
       poppyAudio.load();
     }
     const lockTimer = document.getElementById("lockTimer");
+    const houseLabel = document.getElementById("houseLabel");
     const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
     const debugOverrideKey = "skydoozy-debug";
     const debugEnabled = (() => {
@@ -2145,6 +2171,31 @@
         zMin: -240,
         zMax: 140
       }
+    };
+    const houseLabelAnchor = new THREE.Vector3();
+    const houseLabelScreen = new THREE.Vector3();
+    let houseLabelAnchorReady = false;
+    const houseLabelYOffset = 6;
+    const setHouseLabelAnchor = (center, topY) => {
+      houseLabelAnchor.set(center.x, topY + houseLabelYOffset, center.z);
+      houseLabelAnchorReady = true;
+    };
+    const updateHouseLabel = (inHouse, playerMoving) => {
+      if (!houseLabel) return;
+      if (!houseLabelAnchorReady || !playerMoving || inHouse) {
+        houseLabel.classList.remove("is-visible");
+        return;
+      }
+      houseLabelScreen.copy(houseLabelAnchor).project(camera);
+      if (houseLabelScreen.z < -1 || houseLabelScreen.z > 1) {
+        houseLabel.classList.remove("is-visible");
+        return;
+      }
+      const x = (houseLabelScreen.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-houseLabelScreen.y * 0.5 + 0.5) * window.innerHeight;
+      houseLabel.style.left = `${x}px`;
+      houseLabel.style.top = `${y}px`;
+      houseLabel.classList.add("is-visible");
     };
     const moveState = {
       up: false,
@@ -5588,6 +5639,7 @@
       roof.position.y = houseSize.height * 0.5 + roofHeight * 0.5 - 1;
       roof.rotation.y = Math.PI * 0.25;
       houseGroup.add(roof);
+      const roofTop = houseGroup.position.y + houseSize.height * 0.5 + roofHeight - 1;
 
       const doorMaterial = new THREE.MeshStandardMaterial({
         color: 0x3b2212,
@@ -5642,6 +5694,7 @@
         halfWidth: houseSize.width * 0.45,
         halfDepth: houseSize.depth * 0.43
       };
+      setHouseLabelAnchor(houseGroup.position, roofTop);
       houseModel = houseGroup;
       if (houseClickProxy) {
         scene.remove(houseClickProxy);
@@ -5722,6 +5775,7 @@
             halfWidth: placedSize.x * 0.45,
             halfDepth: placedSize.z * 0.45
           };
+          setHouseLabelAnchor(placedCenter, placedBox.max.y);
           houseModel = model;
           if (houseClickProxy) {
             scene.remove(houseClickProxy);
@@ -5965,6 +6019,7 @@
         updateIdleHintText();
       }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
+      updateHouseLabel(inHouse, playerMoving);
       if (playerState.group) {
         playerState.group.visible = !inHouse;
       }
