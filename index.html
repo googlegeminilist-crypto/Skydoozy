@@ -1290,7 +1290,7 @@
       debugReset.addEventListener("click", () => {
         resetControlLock(true);
         if (debugEnabled) {
-          resetTreasureList();
+          resetTreasureProgress();
         }
       });
     }
@@ -1872,6 +1872,19 @@
       wordBag = [];
       refillBag();
       layoutWordCloud();
+    };
+    const resetTreasureProgress = () => {
+      resetTreasureList();
+      treasureDayIndex = 1;
+      setTreasureWordsForDay(treasureDayIndex);
+      treasureCompleteShown = false;
+      try {
+        localStorage.removeItem(treasureDayKey);
+        localStorage.removeItem(treasureDayIndexKey);
+        localStorage.removeItem(treasureCompleteKey);
+      } catch (error) {
+        // Ignore storage failures.
+      }
     };
     const appendWordToCloud = (text) => {
       if (!wordCloud) return;
