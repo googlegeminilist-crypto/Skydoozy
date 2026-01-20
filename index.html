@@ -1691,7 +1691,7 @@
       });
     }
     const setHouseLabelClicked = () => {
-      if (!houseLabel) return;
+      if (!houseLabel || !walkUnlocked) return;
       houseLabel.textContent = "";
       houseLabel.classList.remove("is-visible");
       if (houseActionNote) {
@@ -3359,6 +3359,7 @@
     };
     const handleHouseClick = (event) => {
       if (walkUnlocked) return;
+      if (controlsBlockedToday) return;
       if (!houseModel && !houseClickProxy) return;
       if (isUiTarget(event.target)) return;
       const rect = canvas.getBoundingClientRect();
@@ -3370,8 +3371,8 @@
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(target, true);
       if (!hits.length) return;
-      setHouseLabelClicked();
       unlockWalking();
+      setHouseLabelClicked();
     };
     const handleCharacterClick = (event) => {
       if (!playerState.group || characterClickedToday) return;
