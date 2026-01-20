@@ -136,10 +136,35 @@ struct WebGameView: UIViewRepresentable {
             try { el.pause(); } catch (e) {}
             el.removeAttribute('src');
           });
+          var introAudio = document.getElementById('introAudio');
+          if (introAudio) {
+            try { introAudio.pause(); } catch (e) {}
+            introAudio.muted = true;
+            introAudio.volume = 0;
+            introAudio.removeAttribute('src');
+          }
+          var voice = document.getElementById('voiceAudio');
+          if (voice) {
+            try { voice.pause(); } catch (e) {}
+            voice.muted = true;
+            voice.volume = 0;
+          }
+          var poppy = document.getElementById('poppyAudio');
+          if (poppy) {
+            try { poppy.pause(); } catch (e) {}
+            poppy.muted = true;
+            poppy.volume = 0;
+          }
         })();
         """
         let script = WKUserScript(source: userScriptSource, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         let controller = WKUserContentController()
+        let appFlag = WKUserScript(
+            source: "window.SKYDOOZY_APP = true;",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        controller.addUserScript(appFlag)
         controller.addUserScript(script)
         config.userContentController = controller
         let view = WKWebView(frame: .zero, configuration: config)

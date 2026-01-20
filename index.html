@@ -1284,6 +1284,31 @@
         return false;
       }
     })();
+    const isAppView = (() => {
+      try {
+        return Boolean(window.SKYDOOZY_APP);
+      } catch (error) {
+        return false;
+      }
+    })();
+    if (isAppView) {
+      if (introAudio) {
+        introAudio.pause();
+        introAudio.muted = true;
+        introAudio.volume = 0;
+        introAudio.removeAttribute("src");
+      }
+      if (voiceAudio) {
+        voiceAudio.pause();
+        voiceAudio.muted = true;
+        voiceAudio.volume = 0;
+      }
+      if (poppyAudio) {
+        poppyAudio.pause();
+        poppyAudio.muted = true;
+        poppyAudio.volume = 0;
+      }
+    }
     let debugDayOffset = 0;
     if (isLocalHost) {
       try {
@@ -2996,6 +3021,10 @@
       right: new THREE.Vector3(),
       direction: new THREE.Vector3()
     };
+    const tapMoveTarget = new THREE.Vector3();
+    const tapMovePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -playerState.groundY);
+    const tapMoveMinDistance = 1.2;
+    let tapMoveActive = false;
     const makeSparkleTexture = () => {
       const size = 64;
       const canvas = document.createElement("canvas");
@@ -3323,6 +3352,32 @@
         target.closest(".story-panel, .blog-panel, .audio-control, .app-note")
       );
     };
+    const handleTapMove = (event) => {
+      if (!isAppView) return;
+      if (!walkUnlocked || controlsBlockedToday) return;
+      if (!playerState.group || !playerState.group.visible) return;
+      if (isInsideHouse(playerState.group.position)) return;
+      if (isUiTarget(event.target)) return;
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      camera.updateMatrixWorld();
+      raycaster.setFromCamera(pointer, camera);
+      if (!raycaster.ray.intersectPlane(tapMovePlane, tapMoveTarget)) return;
+      tapMoveTarget.x = THREE.MathUtils.clamp(
+        tapMoveTarget.x,
+        -playerState.bounds.x,
+        playerState.bounds.x
+      );
+      tapMoveTarget.z = THREE.MathUtils.clamp(
+        tapMoveTarget.z,
+        playerState.bounds.zMin,
+        playerState.bounds.zMax
+      );
+      tapMoveTarget.y = playerState.group.position.y;
+      tapMoveActive = true;
+      markControlsUsed();
+    };
     const handlePoppySpace = (event) => {
       if (event.code !== "Space") return;
       if (isTypingTarget(event.target)) return;
@@ -3396,6 +3451,7 @@
     window.addEventListener("pointerdown", handleSanctuaryClick);
     window.addEventListener("pointerdown", handleHouseClick);
     window.addEventListener("pointerdown", handleCharacterClick);
+    window.addEventListener("pointerdown", handleTapMove);
     window.addEventListener("blur", resetMoveState);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) resetMoveState();
@@ -6815,16 +6871,40 @@
         if (playerMove.right.lengthSq() < 0.001) {
           playerMove.right.set(1, 0, 0);
         } else {
-          playerMove.right.normalize();
+        playerMove.right.normalize();
+      }
+      playerMove.forward.crossVectors(worldUp, playerMove.right).normalize();
+      const moveX = (moveState.right ? 1 : 0) - (moveState.left ? 1 : 0);
+      const moveZ = (moveState.up ? 1 : 0) - (moveState.down ? 1 : 0);
+      if (moveX || moveZ) {
+        playerMove.direction.set(0, 0, 0);
+        playerMove.direction
+          .addScaledVector(playerMove.forward, moveZ)
+          .addScaledVector(playerMove.right, moveX);
+        if (playerMove.direction.lengthSq() > 0) {
+          playerMove.direction.normalize();
         }
-        playerMove.forward.crossVectors(worldUp, playerMove.right).normalize();
-        const moveX = (moveState.right ? 1 : 0) - (moveState.left ? 1 : 0);
-        const moveZ = (moveState.up ? 1 : 0) - (moveState.down ? 1 : 0);
-        if (moveX || moveZ) {
-          playerMove.direction.set(0, 0, 0);
-          playerMove.direction
-            .addScaledVector(playerMove.forward, moveZ)
-            .addScaledVector(playerMove.right, moveX);
+        playerState.group.position.addScaledVector(playerMove.direction, playerState.speed * delta);
+        playerState.group.position.x = THREE.MathUtils.clamp(
+          playerState.group.position.x,
+          -playerState.bounds.x,
+          playerState.bounds.x
+        );
+        playerState.group.position.z = THREE.MathUtils.clamp(
+          playerState.group.position.z,
+          playerState.bounds.zMin,
+          playerState.bounds.zMax
+        );
+        playerState.group.rotation.y = Math.atan2(playerMove.direction.x, playerMove.direction.z);
+        playerMoving = true;
+      } else if (tapMoveActive) {
+        const dx = tapMoveTarget.x - playerState.group.position.x;
+        const dz = tapMoveTarget.z - playerState.group.position.z;
+        const distSq = dx * dx + dz * dz;
+        if (distSq <= tapMoveMinDistance * tapMoveMinDistance) {
+          tapMoveActive = false;
+        } else {
+          playerMove.direction.set(dx, 0, dz);
           if (playerMove.direction.lengthSq() > 0) {
             playerMove.direction.normalize();
           }
@@ -6843,6 +6923,7 @@
           playerMoving = true;
         }
       }
+    }
       if (playerMoving) {
         hasWalked = true;
         lastMoveAt = nowEpoch;
@@ -6897,6 +6978,9 @@
         updateIdleHintText();
       }
       const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
+      if (inHouse || !walkUnlocked || controlsBlockedToday) {
+        tapMoveActive = false;
+      }
       updateHouseLabel(inHouse, playerMoving);
       updateBipedLabel();
       if (playerState.group) {
