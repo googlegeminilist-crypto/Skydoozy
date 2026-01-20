@@ -1746,6 +1746,10 @@
           if (!Number.isFinite(day)) return;
           setTreasureListView(day);
           treasureDaySelected = true;
+          if (isAppView && !levelSelected) {
+            levelSelected = true;
+            updateLevelSelection();
+          }
           resetChallengeState();
           if (canStartChallenge()) {
             startChallenge();
@@ -2597,6 +2601,7 @@
       }
     };
     const updateControlLockState = (nowEpoch) => {
+      if (isAppView) return;
       if (!controlsBlockedToday) return;
       if (controlsLockedUntil && nowEpoch >= controlsLockedUntil) {
         controlsBlockedToday = false;
@@ -2639,6 +2644,10 @@
       updateLockTimer(Date.now());
     };
     const loadControlStatus = () => {
+      if (isAppView) {
+        resetControlLock(false);
+        return;
+      }
       try {
         if (localStorage.getItem(debugResetKey) !== "1") {
           resetControlLock(true);
@@ -2701,6 +2710,7 @@
       }
     };
     const markControlsLocked = () => {
+      if (isAppView) return;
       if (controlsBlockedToday) return;
       const lockUntil = (lastMoveAt > 0 ? lastMoveAt : Date.now()) + lockDurationMs;
       controlsBlockedToday = true;
