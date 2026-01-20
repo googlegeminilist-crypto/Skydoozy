@@ -69,6 +69,10 @@
     body.app-view .audio-control {
       display: none !important;
     }
+    body.app-view.is-walking .story-panel {
+      opacity: 1;
+      pointer-events: auto;
+    }
     body.app-view {
       overflow-y: auto;
       overscroll-behavior-y: contain;
@@ -2347,7 +2351,14 @@
     const renderTreasureList = (day) => {
       if (!treasureList) return;
       treasureList.innerHTML = "";
-      const list = collectedTreasureWordsByDay[day] || [];
+      let list = collectedTreasureWordsByDay[day] || [];
+      if (isAppView && !list.length) {
+        const fallback = treasureWordSets[day - 1] || [];
+        if (fallback.length) {
+          list = fallback.slice();
+          collectedTreasureWordsByDay[day] = list.slice();
+        }
+      }
       if (!list.length) {
         const empty = document.createElement("li");
         empty.className = "is-empty";
