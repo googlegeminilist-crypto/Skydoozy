@@ -541,6 +541,10 @@
       pointer-events: none;
     }
 
+    #challengeTimer {
+      display: none;
+    }
+
     .story-hint {
       display: flex;
       flex-direction: column;
@@ -577,6 +581,14 @@
     .treasure-list-day {
       font-size: 0.85rem;
       color: rgba(155, 213, 255, 0.8);
+    }
+
+    .treasure-list-timer {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: rgba(160, 220, 255, 0.85);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .treasure-list-tabs {
@@ -1086,6 +1098,7 @@
         <span class="treasure-list-title" id="treasureListTitle">Collected Words</span>
         <span class="treasure-list-day" id="treasureListDay">Day 1</span>
       </div>
+      <div class="treasure-list-timer" id="treasureListTimer">--</div>
       <div class="treasure-list-tabs" role="tablist" aria-label="Word lists by day">
         <button class="treasure-list-btn" type="button" data-day="1">Day 1</button>
         <button class="treasure-list-btn" type="button" data-day="2">Day 2</button>
@@ -1167,6 +1180,7 @@
     const treasureList = document.getElementById("treasureList");
     const treasureListTitle = document.getElementById("treasureListTitle");
     const treasureListDay = document.getElementById("treasureListDay");
+    const treasureListTimer = document.getElementById("treasureListTimer");
     const treasureListButtons = document.querySelectorAll(".treasure-list-btn");
     const treasureListTitleText = "Collected Words";
     let treasureDaySelected = false;
@@ -1584,7 +1598,9 @@
           setTreasureListView(day);
           treasureDaySelected = true;
           resetChallengeState();
-          requestChallenge(0);
+          timeLeft = challengeSeconds;
+          updateTimer();
+          startChallenge();
         });
       });
     }
@@ -3623,10 +3639,8 @@
         updateTimer();
         return;
       }
-      if (!getSelectedTreasureList().length) {
-        timeLeft = 0;
-        updateTimer();
-        scheduleTimeout = setTimeout(() => requestChallenge(delayMs), 2000);
+      if (delayMs <= 0) {
+        startChallenge();
         return;
       }
       scheduleTimeout = setTimeout(startChallenge, delayMs);
@@ -3696,7 +3710,9 @@
       return `${mins}:${String(secs).padStart(2, "0")}`;
     };
     const updateTimer = () => {
-      challengeTimer.textContent = timeLeft > 0 ? formatTimer(timeLeft) : "--";
+      const next = timeLeft > 0 ? formatTimer(timeLeft) : "--";
+      if (challengeTimer) challengeTimer.textContent = next;
+      if (treasureListTimer) treasureListTimer.textContent = next;
     };
     const updateRainAllowed = () => {
       rainAllowed = isFirstVisit || challengeSeconds === 300;
@@ -3727,6 +3743,10 @@
           if (!Number.isFinite(seconds)) return;
           setChallengeSeconds(seconds);
           updateLevelSelection();
+          if (treasureDaySelected) {
+            resetChallengeState();
+            startChallenge();
+          }
         });
       });
     }
@@ -3746,7 +3766,6 @@
     };
 
     const tick = () => {
-      if (pauseChallengeTimer) return;
       timeLeft -= 1;
       updateTimer();
       if (timeLeft <= 0) {
@@ -3761,21 +3780,23 @@
       if (challengeActive) return;
       clearTimeout(scheduleTimeout);
       if (!canStartChallenge()) return;
-      if (!list.length) {
-        requestChallenge(2000);
-        return;
-      }
       challengeActive = true;
-      challengeStatus.textContent = "A word vanished! Type it in the red box.";
-      const nextIndex = pickNextListWordIndex(list.length);
-      if (nextIndex === null) {
-        challengeActive = false;
-        return;
+      if (list.length) {
+        challengeStatus.textContent = "A word vanished! Type it in the red box.";
+        const nextIndex = pickNextListWordIndex(list.length);
+        if (nextIndex === null) {
+          challengeActive = false;
+          return;
+        }
+        activeWord = list[nextIndex];
+        activeListWordIndex = nextIndex;
+        activeListWordDay = treasureListViewDay;
+        hideListWord(activeListWordDay, activeListWordIndex);
+      } else {
+        activeWord = null;
+        activeListWordIndex = null;
+        activeListWordDay = 0;
       }
-      activeWord = list[nextIndex];
-      activeListWordIndex = nextIndex;
-      activeListWordDay = treasureListViewDay;
-      hideListWord(activeListWordDay, activeListWordIndex);
       timeLeft = challengeSeconds;
       updateTimer();
       challengeInput.value = "";
