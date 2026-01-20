@@ -988,9 +988,9 @@
     <div class="level-select" aria-label="Difficulty levels">
       <div class="level-select-title">Levels</div>
       <ul class="level-list">
-        <li><button class="level-btn" type="button" data-level="1" data-seconds="50">Level 1</button></li>
-        <li><button class="level-btn" type="button" data-level="2" data-seconds="30">Level 2</button></li>
-        <li><button class="level-btn" type="button" data-level="3" data-seconds="20">Level 3</button></li>
+        <li><button class="level-btn" type="button" data-level="1" data-seconds="300">Level 1</button></li>
+        <li><button class="level-btn" type="button" data-level="2" data-seconds="240">Level 2</button></li>
+        <li><button class="level-btn" type="button" data-level="3" data-seconds="180">Level 3</button></li>
       </ul>
     </div>
     <p>Training your memory is very good for your brain. It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because it's all you think about when you do it, so all your other thoughts fade away.</p>
@@ -3338,7 +3338,7 @@
     let countdownInterval = null;
     let scheduleTimeout = null;
     let timeLeft = 0;
-    let challengeSeconds = 50;
+    let challengeSeconds = 300;
     let pauseChallengeTimer = false;
     const isFirstVisit = (() => {
       const key = "skydoozy-visited";
@@ -3355,14 +3355,20 @@
     let rainAllowed = true;
     let smokeAllowed = false;
     const levelButtons = document.querySelectorAll(".level-btn");
+    const formatTimer = (seconds) => {
+      const total = Math.max(0, Math.floor(seconds));
+      const mins = Math.floor(total / 60);
+      const secs = total % 60;
+      return `${mins}:${String(secs).padStart(2, "0")}`;
+    };
     const updateTimer = () => {
-      challengeTimer.textContent = timeLeft > 0 ? `${timeLeft}s` : "--";
+      challengeTimer.textContent = timeLeft > 0 ? formatTimer(timeLeft) : "--";
     };
     const updateRainAllowed = () => {
-      rainAllowed = isFirstVisit || challengeSeconds === 50;
+      rainAllowed = isFirstVisit || challengeSeconds === 300;
     };
     const updateSmokeAllowed = () => {
-      smokeAllowed = challengeSeconds === 30;
+      smokeAllowed = challengeSeconds === 240;
     };
     const setChallengeSeconds = (seconds) => {
       challengeSeconds = seconds;
