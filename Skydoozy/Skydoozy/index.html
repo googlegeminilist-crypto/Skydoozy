@@ -1244,6 +1244,8 @@
       poppyAudio.load();
     }
     const lockTimer = document.getElementById("lockTimer");
+    const storyPanel = document.querySelector(".story-panel");
+    const levelSelect = document.querySelector(".level-select");
     const houseLabel = document.getElementById("houseLabel");
     const houseActionNote = document.getElementById("houseActionNote");
     const bipedLabel = document.getElementById("bipedLabel");
@@ -1306,6 +1308,9 @@
     })();
     if (isAppView) {
       document.body.classList.add("app-view");
+      if (levelSelect && storyPanel) {
+        storyPanel.appendChild(levelSelect);
+      }
       if (houseLabel) {
         houseLabel.textContent = "";
         houseLabel.classList.remove("is-visible");
