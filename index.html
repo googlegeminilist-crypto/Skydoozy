@@ -2308,6 +2308,20 @@
     };
     const loadTreasureWords = () => {
       if (!wordCloud) return;
+      if (isFirstVisit) {
+        collectedTreasureWordsByDay = {};
+        collectedTreasureWords = [];
+        collectedTreasureSet = new Set();
+        resetTreasureComplete();
+        try {
+          localStorage.removeItem(treasureWordsByDayKey);
+          localStorage.removeItem(treasureWordsKey);
+        } catch (error) {
+          // Ignore storage failures.
+        }
+        setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
+        return;
+      }
       collectedTreasureWordsByDay = {};
       try {
         const storedByDay = JSON.parse(localStorage.getItem(treasureWordsByDayKey) || "{}");
@@ -2423,6 +2437,14 @@
     const houseDoorSpeed = 6;
     const isInsideHouse = (position) => {
       if (!houseBounds || !position) return false;
+      if (
+        !Number.isFinite(houseBounds.x) ||
+        !Number.isFinite(houseBounds.z) ||
+        !Number.isFinite(houseBounds.halfWidth) ||
+        !Number.isFinite(houseBounds.halfDepth)
+      ) {
+        return false;
+      }
       const dx = position.x - houseBounds.x;
       const dz = position.z - houseBounds.z;
       return Math.abs(dx) <= houseBounds.halfWidth && Math.abs(dz) <= houseBounds.halfDepth;
@@ -2560,6 +2582,18 @@
       playVoiceCue();
       updateLockTimer(Date.now());
     };
+    const isFirstVisit = (() => {
+      const key = "skydoozy-visited";
+      try {
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, "1");
+          return true;
+        }
+      } catch (error) {
+        return true;
+      }
+      return false;
+    })();
     loadCharacterClick();
     loadControlStatus();
     loadTreasureDay();
@@ -3751,18 +3785,6 @@
       timeLeft = 0;
       updateTimer();
     };
-    const isFirstVisit = (() => {
-      const key = "skydoozy-visited";
-      try {
-        if (!localStorage.getItem(key)) {
-          localStorage.setItem(key, "1");
-          return true;
-        }
-      } catch (error) {
-        return true;
-      }
-      return false;
-    })();
     let rainAllowed = true;
     let smokeAllowed = false;
     const levelButtons = document.querySelectorAll(".level-btn");
@@ -6553,6 +6575,21 @@
           const placedSize = new THREE.Vector3();
           placedBox.getCenter(placedCenter);
           placedBox.getSize(placedSize);
+          if (
+            !Number.isFinite(placedCenter.x) ||
+            !Number.isFinite(placedCenter.y) ||
+            !Number.isFinite(placedCenter.z) ||
+            !Number.isFinite(placedSize.x) ||
+            !Number.isFinite(placedSize.y) ||
+            !Number.isFinite(placedSize.z) ||
+            placedSize.x <= 0 ||
+            placedSize.y <= 0 ||
+            placedSize.z <= 0
+          ) {
+            console.warn("Invalid haunted house bounds. Using fallback house.");
+            buildHouse();
+            return;
+          }
           houseBounds = {
             x: placedCenter.x,
             z: placedCenter.z,
