@@ -4062,18 +4062,22 @@
         btn.classList.toggle("is-active", seconds === challengeSeconds);
       });
     };
-    const ensureAppChallengeReady = (dayOverride) => {
+    const ensureAppChallengeReady = (dayOverride, secondsOverride) => {
       if (!isAppView) return false;
+      if (Number.isFinite(secondsOverride)) {
+        levelSelected = true;
+        setChallengeSeconds(secondsOverride);
+        updateLevelSelection();
+      } else if (!levelSelected) {
+        levelSelected = true;
+        updateLevelSelection();
+      }
       if (Number.isFinite(dayOverride)) {
         setTreasureListView(dayOverride);
         treasureDaySelected = true;
       } else if (!treasureDaySelected) {
         treasureDaySelected = true;
         setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
-      }
-      if (!levelSelected) {
-        levelSelected = true;
-        updateLevelSelection();
       }
       resetChallengeState();
       startChallenge();
@@ -4085,13 +4089,13 @@
         btn.addEventListener("click", () => {
           const seconds = Number(btn.dataset.seconds);
           if (!Number.isFinite(seconds)) return;
+          if (isAppView) {
+            ensureAppChallengeReady(treasureListViewDay || treasureDayIndex, seconds);
+            return;
+          }
           levelSelected = true;
           setChallengeSeconds(seconds);
           updateLevelSelection();
-          if (isAppView) {
-            ensureAppChallengeReady(treasureListViewDay || treasureDayIndex);
-            return;
-          }
           if (treasureDaySelected) {
             resetChallengeState();
           }
@@ -4100,6 +4104,27 @@
           }
         });
       });
+    }
+    if (isAppView) {
+      const handleAppChallengeTap = (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const levelBtn = target.closest(".level-btn");
+        if (levelBtn) {
+          const seconds = Number(levelBtn.dataset.seconds);
+          if (!Number.isFinite(seconds)) return;
+          ensureAppChallengeReady(treasureListViewDay || treasureDayIndex, seconds);
+          return;
+        }
+        const dayBtn = target.closest(".treasure-list-btn");
+        if (dayBtn) {
+          const day = Number(dayBtn.dataset.day);
+          if (!Number.isFinite(day)) return;
+          ensureAppChallengeReady(day);
+        }
+      };
+      document.addEventListener("touchend", handleAppChallengeTap, { passive: true });
+      document.addEventListener("click", handleAppChallengeTap);
     }
     updateRainAllowed();
     updateSmokeAllowed();
@@ -4162,8 +4187,12 @@
       }
       timeLeft = challengeSeconds;
       updateTimer();
-      challengeInput.value = "";
-      challengeInput.focus();
+      if (challengeInput) {
+        challengeInput.value = "";
+        if (!isAppView) {
+          challengeInput.focus();
+        }
+      }
       countdownInterval = setInterval(tick, 1000);
     };
 
