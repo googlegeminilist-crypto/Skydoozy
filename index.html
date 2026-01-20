@@ -3352,15 +3352,21 @@
         target.closest(".story-panel, .blog-panel, .audio-control, .app-note")
       );
     };
+    const getPointerEvent = (event) => {
+      if (event.touches && event.touches.length) return event.touches[0];
+      if (event.changedTouches && event.changedTouches.length) return event.changedTouches[0];
+      return event;
+    };
     const handleTapMove = (event) => {
       if (!isAppView) return;
       if (!walkUnlocked || controlsBlockedToday) return;
       if (!playerState.group || !playerState.group.visible) return;
       if (isInsideHouse(playerState.group.position)) return;
       if (isUiTarget(event.target)) return;
+      const point = getPointerEvent(event);
       const rect = canvas.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((point.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((point.clientY - rect.top) / rect.height) * 2 + 1;
       camera.updateMatrixWorld();
       raycaster.setFromCamera(pointer, camera);
       if (!raycaster.ray.intersectPlane(tapMovePlane, tapMoveTarget)) return;
@@ -3377,6 +3383,7 @@
       tapMoveTarget.y = playerState.group.position.y;
       tapMoveActive = true;
       markControlsUsed();
+      event.preventDefault();
     };
     const handlePoppySpace = (event) => {
       if (event.code !== "Space") return;
@@ -3398,9 +3405,10 @@
     const handleSanctuaryClick = (event) => {
       if (!sanctuaryModel && !sanctuaryClickProxy) return;
       if (isUiTarget(event.target)) return;
+      const point = getPointerEvent(event);
       const rect = canvas.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((point.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((point.clientY - rect.top) / rect.height) * 2 + 1;
       camera.updateMatrixWorld();
       const target = sanctuaryClickProxy || sanctuaryModel;
       target.updateWorldMatrix(true, true);
@@ -3417,9 +3425,10 @@
       if (controlsBlockedToday) return;
       if (!houseModel && !houseClickProxy) return;
       if (isUiTarget(event.target)) return;
+      const point = getPointerEvent(event);
       const rect = canvas.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((point.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((point.clientY - rect.top) / rect.height) * 2 + 1;
       camera.updateMatrixWorld();
       const target = houseClickProxy || houseModel;
       target.updateWorldMatrix(true, true);
@@ -3432,9 +3441,10 @@
     const handleCharacterClick = (event) => {
       if (!playerState.group || characterClickedToday) return;
       if (isUiTarget(event.target)) return;
+      const point = getPointerEvent(event);
       const rect = canvas.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((point.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((point.clientY - rect.top) / rect.height) * 2 + 1;
       camera.updateMatrixWorld();
       playerState.group.updateWorldMatrix(true, true);
       raycaster.setFromCamera(pointer, camera);
@@ -3452,6 +3462,10 @@
     window.addEventListener("pointerdown", handleHouseClick);
     window.addEventListener("pointerdown", handleCharacterClick);
     window.addEventListener("pointerdown", handleTapMove);
+    window.addEventListener("touchstart", handleSanctuaryClick, { passive: false });
+    window.addEventListener("touchstart", handleHouseClick, { passive: false });
+    window.addEventListener("touchstart", handleCharacterClick, { passive: false });
+    window.addEventListener("touchstart", handleTapMove, { passive: false });
     window.addEventListener("blur", resetMoveState);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) resetMoveState();

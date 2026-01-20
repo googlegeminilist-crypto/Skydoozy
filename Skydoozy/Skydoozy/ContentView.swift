@@ -22,6 +22,12 @@ struct ContentView: View {
                     .ignoresSafeArea()
             } else {
                 introVideoFullScreen
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showWeb = true
+                        introPlayer?.pause()
+                        clearIntroEndObserver()
+                    }
             }
         }
     }
