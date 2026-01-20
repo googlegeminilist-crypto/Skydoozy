@@ -1079,7 +1079,7 @@
     </div>
     <div class="treasure-list-panel" aria-label="Collected word lists">
       <div class="treasure-list-heading">
-        <span class="treasure-list-title" id="treasureListTitle">Sport</span>
+        <span class="treasure-list-title" id="treasureListTitle">Collected Words</span>
         <span class="treasure-list-day" id="treasureListDay">Day 1</span>
       </div>
       <div class="treasure-list-tabs" role="tablist" aria-label="Word lists by day">
@@ -1164,7 +1164,8 @@
     const treasureListTitle = document.getElementById("treasureListTitle");
     const treasureListDay = document.getElementById("treasureListDay");
     const treasureListButtons = document.querySelectorAll(".treasure-list-btn");
-    const treasureListLabels = ["Sport"];
+    const treasureListTitleText = "Collected Words";
+    let treasureDaySelected = false;
     let treasureListViewDay = 0;
     const treasureBubbles = [
       document.getElementById("treasureBubble1"),
@@ -1574,6 +1575,7 @@
           const day = Number(btn.dataset.day);
           if (!Number.isFinite(day)) return;
           setTreasureListView(day);
+          treasureDaySelected = true;
         });
       });
     }
@@ -2105,7 +2107,6 @@
     const collectFruitWord = () => {
       const next = pickFruitWord();
       if (!next) return null;
-      updatePoppySpelling(next);
       return next;
     };
     const collectTreasureWord = () => {
@@ -2118,21 +2119,14 @@
       }
       const normalized = normalizeTreasureWord(next);
       if (collectedTreasureSet.has(normalized)) return;
-      appendWordToCloud(next);
       collectedTreasureSet.add(normalized);
       collectedTreasureWords.push(next);
-      updatePoppySpelling(next);
       saveTreasureWords();
       const treasureCompleteNow = isTreasureSetComplete();
       if (treasureCompleteNow) {
         triggerFireworks(5000);
         showTreasureComplete();
       }
-      enableWordListMode();
-      words.forEach((item) => item.classList.add("is-collected"));
-      collectedWordCount = words.length;
-      wordBag = [];
-      refillBag();
       return next;
     };
     const treasureWordsKey = "skydoozy-treasure-words";
@@ -2158,7 +2152,7 @@
     const clampTreasureDay = (day) => Math.max(1, Math.min(day, treasureWordSets.length));
     const updateTreasureListHeader = (day) => {
       if (treasureListTitle) {
-        treasureListTitle.textContent = treasureListLabels[day - 1] || `Day ${day}`;
+        treasureListTitle.textContent = treasureListTitleText;
       }
       if (treasureListDay) {
         treasureListDay.textContent = `Day ${day}`;
@@ -2278,13 +2272,6 @@
       collectedTreasureWords = (collectedTreasureWordsByDay[treasureDayIndex] || []).slice();
       syncTreasureSet();
       setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
-      if (!collectedTreasureWords.length) return;
-      collectedTreasureWords.forEach((text) => appendWordToCloud(text));
-      enableWordListMode();
-      words.forEach((item) => item.classList.add("is-collected"));
-      collectedWordCount = words.length;
-      wordBag = [];
-      refillBag();
     };
     const saveTreasureWords = () => {
       try {
@@ -3610,6 +3597,7 @@
     let timeLeft = 0;
     let challengeSeconds = 300;
     let pauseChallengeTimer = false;
+    const canStartChallenge = () => treasureDaySelected && collectedTreasureWords.length > 0;
     const isFirstVisit = (() => {
       const key = "skydoozy-visited";
       try {
@@ -3699,6 +3687,10 @@
     const startChallenge = () => {
       if (challengeActive || words.length === 0) return;
       clearTimeout(scheduleTimeout);
+      if (!canStartChallenge()) {
+        scheduleTimeout = setTimeout(startChallenge, 2000);
+        return;
+      }
       challengeActive = true;
       challengeStatus.textContent = "A word vanished! Type it in the red box.";
       activeWord = pickNextWord();
