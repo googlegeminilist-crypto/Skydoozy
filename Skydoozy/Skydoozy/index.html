@@ -66,6 +66,9 @@
     body.app-view .intro-skip {
       display: none !important;
     }
+    body.app-view .audio-control {
+      display: none !important;
+    }
 
     .intro-overlay {
       position: fixed;
@@ -1325,6 +1328,11 @@
         poppyAudio.pause();
         poppyAudio.muted = true;
         poppyAudio.volume = 0;
+      }
+      if (bgAudio) {
+        bgAudio.muted = false;
+        bgAudio.volume = 0.65;
+        bgAudio.preload = "auto";
       }
     }
     let debugDayOffset = 0;
@@ -3796,15 +3804,10 @@
     buildRainbow();
     camera.add(rainbowGroup);
 
-    const updateRainbow = () => {
-      if (!matrixWindow) return;
-      const rect = matrixWindow.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
+    const placeRainbow = (centerX, topY, widthPx) => {
       const depth = rainbowSettings.depth;
       const halfHeight = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * depth;
       const halfWidth = halfHeight * camera.aspect;
-      const centerX = rect.left + rect.width * 0.5;
-      const topY = rect.top;
       const ndcX = (centerX / window.innerWidth) * 2 - 1;
       const ndcY = 1 - (topY / window.innerHeight) * 2;
       rainbowGroup.position.set(
@@ -3812,9 +3815,40 @@
         ndcY * halfHeight + rainbowSettings.yOffset,
         -depth
       );
-      const worldWidth = (rect.width / window.innerWidth) * 2 * halfWidth;
+      const worldWidth = (widthPx / window.innerWidth) * 2 * halfWidth;
       const scale = worldWidth / (rainbowGroup.userData.baseWidth || 1);
       rainbowGroup.scale.setScalar(scale);
+    };
+
+    const updateRainbow = () => {
+      if (isAppView) {
+        placeRainbow(
+          window.innerWidth * 0.5,
+          Math.max(16, window.innerHeight * 0.06),
+          Math.min(window.innerWidth * 0.88, 420)
+        );
+        return;
+      }
+      if (!matrixWindow) {
+        if (!isAppView) return;
+        placeRainbow(
+          window.innerWidth * 0.5,
+          Math.max(16, window.innerHeight * 0.08),
+          Math.min(window.innerWidth * 0.76, 360)
+        );
+        return;
+      }
+      const rect = matrixWindow.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        if (!isAppView) return;
+        placeRainbow(
+          window.innerWidth * 0.5,
+          Math.max(16, window.innerHeight * 0.08),
+          Math.min(window.innerWidth * 0.76, 360)
+        );
+        return;
+      }
+      placeRainbow(rect.left + rect.width * 0.5, rect.top, rect.width);
     };
 
     // Matrix window

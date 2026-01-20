@@ -18,8 +18,15 @@ struct ContentView: View {
     var body: some View {
         Group {
             if showWeb {
-                WebGameView(url: webGameURL)
-                    .ignoresSafeArea()
+                if let url = webGameURL {
+                    WebGameView(url: url)
+                        .ignoresSafeArea()
+                } else {
+                    Text("App web content missing from bundle.")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
+                }
             } else {
                 introVideoFullScreen
                     .contentShape(Rectangle())
@@ -32,9 +39,8 @@ struct ContentView: View {
         }
     }
 
-    private var webGameURL: URL {
+    private var webGameURL: URL? {
         Bundle.main.url(forResource: "index", withExtension: "html")
-            ?? URL(string: "https://skydoozy.skybammy.com/")!
     }
 
     @ViewBuilder
@@ -179,13 +185,15 @@ struct WebGameView: UIViewRepresentable {
         view.scrollView.isScrollEnabled = false
         view.scrollView.bounces = false
         view.scrollView.contentInsetAdjustmentBehavior = .never
-        view.load(URLRequest(url: url))
+        let accessURL = url.deletingLastPathComponent()
+        view.loadFileURL(url, allowingReadAccessTo: accessURL)
         return view
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
         if uiView.url != url {
-            uiView.load(URLRequest(url: url))
+            let accessURL = url.deletingLastPathComponent()
+            uiView.loadFileURL(url, allowingReadAccessTo: accessURL)
         }
     }
 }
