@@ -2444,15 +2444,32 @@
     };
     const assignTreasureBubbleTargets = () => {
       treasureBubbleTargets.length = 0;
-      if (!treasureBubbles.length || !extraGlowOrbs.length) return;
-      const shuffled = extraGlowOrbs.slice();
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      if (!treasureBubbles.length) return;
+      const candidates = [];
+      const visibleCandidates = [];
+      for (let i = 0; i < sparkleCount; i++) {
+        if (!sparkleActive[i]) continue;
+        const i3 = i * 3;
+        candidates.push(i);
+        treasureBubbleWorld.set(
+          sparkleBasePositions[i3],
+          sparkleBasePositions[i3 + 1],
+          sparkleBasePositions[i3 + 2]
+        );
+        treasureBubbleScreen.copy(treasureBubbleWorld).project(camera);
+        if (treasureBubbleScreen.z < -1 || treasureBubbleScreen.z > 1) continue;
+        if (Math.abs(treasureBubbleScreen.x) > 0.95 || Math.abs(treasureBubbleScreen.y) > 0.95) continue;
+        visibleCandidates.push(i);
       }
-      const count = Math.min(treasureBubbles.length, shuffled.length);
+      const pool = visibleCandidates.length ? visibleCandidates : candidates;
+      if (!pool.length) return;
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      const count = Math.min(treasureBubbles.length, pool.length);
       for (let i = 0; i < count; i++) {
-        treasureBubbleTargets.push({ bubble: treasureBubbles[i], source: shuffled[i] });
+        treasureBubbleTargets.push({ bubble: treasureBubbles[i], index: pool[i] });
       }
       for (let i = count; i < treasureBubbles.length; i++) {
         treasureBubbles[i].classList.remove("is-visible");
@@ -2477,12 +2494,16 @@
     const updateTreasureBubbles = () => {
       if (!treasureBubbleActive) return;
       treasureBubbleTargets.forEach((entry) => {
-        if (!entry.source || !entry.source.group) {
+        if (typeof entry.index !== "number" || !sparkleActive[entry.index]) {
           entry.bubble.classList.remove("is-visible");
           return;
         }
-        entry.source.group.getWorldPosition(treasureBubbleWorld);
-        treasureBubbleWorld.y += treasureBubbleOffset;
+        const i3 = entry.index * 3;
+        treasureBubbleWorld.set(
+          sparklePositions[i3],
+          sparklePositions[i3 + 1] + treasureBubbleOffset,
+          sparklePositions[i3 + 2]
+        );
         treasureBubbleScreen.copy(treasureBubbleWorld).project(camera);
         if (treasureBubbleScreen.z < -1 || treasureBubbleScreen.z > 1) {
           entry.bubble.classList.remove("is-visible");
@@ -6359,7 +6380,6 @@
         showTreasureBubbles();
       }
       updatePlayerBubble();
-      updateTreasureBubbles();
       if (houseDoorPivot) {
         const doorTarget = inHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
         const lerp = Math.min(1, delta * houseDoorSpeed);
@@ -6387,6 +6407,7 @@
       }
       pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
       updateGroundSparkles(t, delta);
+      updateTreasureBubbles();
       if (titleStack) {
         titleStack.classList.toggle("is-walking", playerMoving);
       }
