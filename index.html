@@ -164,9 +164,10 @@
       pointer-events: none;
       z-index: 7;
       white-space: nowrap;
-      position: absolute;
-      top: -50px;
-      right: -20px;
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -100%);
     }
 
     .house-label.is-visible {
@@ -2711,21 +2712,21 @@
     };
     const updateHouseLabel = (inHouse, playerMoving) => {
       if (!houseLabel) return;
-      if (!houseLabelAnchorReady || walkUnlocked || playerMoving || inHouse) {
+      if (!houseLabelAnchorReady || walkUnlocked || playerMoving) {
         houseLabel.classList.remove("is-visible");
         return;
       }
-      if (!titleHeading) {
+      houseLabelScreen.copy(houseLabelAnchor).project(camera);
+      if (houseLabelScreen.z < -1 || houseLabelScreen.z > 1) {
         houseLabel.classList.remove("is-visible");
         return;
       }
-      const rect = titleHeading.getBoundingClientRect();
-      if (!rect.width || !rect.height) {
+      if (Math.abs(houseLabelScreen.x) > 1.05 || Math.abs(houseLabelScreen.y) > 1.05) {
         houseLabel.classList.remove("is-visible");
         return;
       }
-      const x = rect.right;
-      const y = rect.top;
+      const x = (houseLabelScreen.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-houseLabelScreen.y * 0.5 + 0.5) * window.innerHeight;
       houseLabel.style.left = `${x}px`;
       houseLabel.style.top = `${y}px`;
       houseLabel.classList.add("is-visible");
