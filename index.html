@@ -6901,9 +6901,6 @@
       if (playerState.group) {
         playerState.group.visible = !inHouse;
       }
-      if (playerState.group && !inHouse && !playerBubbleShown) {
-        showPlayerBubble();
-      }
       updatePlayerBubble();
       if (wasInHouse && !inHouse) {
         treasureBubbleSuppressUntil = nowEpoch + treasureBubbleExitGraceMs;
