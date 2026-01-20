@@ -88,6 +88,31 @@
     .intro-video.is-ready {
       opacity: 1;
     }
+    .intro-skip {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 18px;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: #ff3b30;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 8px rgba(255, 59, 48, 0.9),
+        0 0 18px rgba(255, 59, 48, 0.6),
+        0 0 28px rgba(255, 59, 48, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .intro-skip.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
     h1 {
       font-size: clamp(2.5rem, 6vw, 4.5rem);
@@ -1088,6 +1113,7 @@
       data-intro-sequence="Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4|Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4">
       <source src="Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4" type="video/mp4" />
     </video>
+    <button class="intro-skip" id="introSkip" type="button" aria-hidden="true">Skip video</button>
   </div>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
@@ -1194,6 +1220,7 @@
     const voiceAudio = document.getElementById("voiceAudio");
     const introOverlay = document.getElementById("introOverlay");
     const introVideo = document.getElementById("introVideo");
+    const introSkip = document.getElementById("introSkip");
     const introAudio = document.getElementById("introAudio");
     const poppyAudio = document.getElementById("poppyAudio");
     const poppyInput = document.getElementById("poppyInput");
@@ -1281,6 +1308,10 @@
       introOverlay.classList.add("is-hidden");
       introOverlay.setAttribute("aria-hidden", "true");
       document.body.classList.remove("intro-open");
+      if (introSkip) {
+        introSkip.classList.remove("is-visible");
+        introSkip.setAttribute("aria-hidden", "true");
+      }
     };
     if (introOverlay && introVideo) {
       showIntro();
@@ -1299,6 +1330,15 @@
         .map((item) => item.trim())
         .filter(Boolean);
       let introSequenceIndex = 0;
+      const introSkipSource =
+        "Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4";
+      const updateIntroSkip = () => {
+        if (!introSkip) return;
+        const currentSrc = introSequence[introSequenceIndex] || "";
+        const shouldShow = currentSrc.includes(introSkipSource);
+        introSkip.classList.toggle("is-visible", shouldShow);
+        introSkip.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+      };
       const setIntroSource = (src) => {
         if (introSource) {
           introSource.src = src;
@@ -1312,6 +1352,7 @@
         if (introSequence.length) {
           setIntroSource(introSequence[introSequenceIndex]);
         }
+        updateIntroSkip();
         const playVideoAttempt = introVideo.play();
         if (playVideoAttempt && typeof playVideoAttempt.catch === "function") {
           playVideoAttempt.catch(() => {
@@ -1328,9 +1369,23 @@
         introVideoDone = true;
         hideWhenDone();
       };
+      if (introSkip) {
+        introSkip.addEventListener("click", () => {
+          introVideo.pause();
+          introVideoDone = true;
+          if (introAudio) {
+            introAudio.pause();
+            introAudioDone = true;
+          }
+          hideIntro();
+        });
+      }
       introVideo.addEventListener("loadstart", () => setIntroReady(false));
       introVideo.addEventListener("loadeddata", () => setIntroReady(true));
-      introVideo.addEventListener("playing", () => setIntroReady(true));
+      introVideo.addEventListener("playing", () => {
+        setIntroReady(true);
+        updateIntroSkip();
+      });
       introVideo.addEventListener("error", () => setIntroReady(false));
       if (introAudio) {
         try {
