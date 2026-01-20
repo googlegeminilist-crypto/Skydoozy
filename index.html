@@ -2749,6 +2749,7 @@
     let treasureBubbleTimer = 0;
     let treasureBubbleRefreshAt = 0;
     const treasureBubbleRefreshMs = 1200;
+    const maxTreasureBubbles = 1;
     const treasureBubbleTargets = [];
     const treasureBubbleWorld = new THREE.Vector3();
     const treasureBubbleScreen = new THREE.Vector3();
@@ -2766,6 +2767,7 @@
     const assignTreasureBubbleTargets = () => {
       treasureBubbleTargets.length = 0;
       if (!treasureBubbles.length) return;
+      const bubbleLimit = Math.min(maxTreasureBubbles, treasureBubbles.length);
       const hasPlayer = Boolean(playerState.group);
       const playerX = hasPlayer ? playerState.group.position.x : 0;
       const playerZ = hasPlayer ? playerState.group.position.z : 0;
@@ -2793,8 +2795,8 @@
       const poolSource = hasPlayer && visibleCandidates.length ? visibleCandidates : candidates;
       if (!poolSource.length) return;
       poolSource.sort((a, b) => a.distSq - b.distSq);
-      const pool = poolSource.slice(0, treasureBubbles.length);
-      const count = Math.min(treasureBubbles.length, pool.length);
+      const pool = poolSource.slice(0, bubbleLimit);
+      const count = Math.min(bubbleLimit, pool.length);
       for (let i = 0; i < count; i++) {
         treasureBubbleTargets.push({ bubble: treasureBubbles[i], index: pool[i].index });
       }
@@ -2806,9 +2808,13 @@
       if (treasureBubbleShown || !treasureBubbles.length) return;
       treasureBubbleShown = true;
       treasureBubbleActive = true;
-      treasureBubbles.forEach((bubble) => {
-        bubble.textContent = treasureBubbleText;
-      });
+      const bubbleLimit = Math.min(maxTreasureBubbles, treasureBubbles.length);
+      for (let i = 0; i < bubbleLimit; i++) {
+        treasureBubbles[i].textContent = treasureBubbleText;
+      }
+      for (let i = bubbleLimit; i < treasureBubbles.length; i++) {
+        treasureBubbles[i].classList.remove("is-visible");
+      }
       assignTreasureBubbleTargets();
       treasureBubbleRefreshAt = performance.now() + treasureBubbleRefreshMs;
       updateTreasureBubbles();
