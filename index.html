@@ -1162,6 +1162,8 @@
         if (playAudioAttempt && typeof playAudioAttempt.catch === "function") {
           playAudioAttempt.catch(() => {
             introAudio.controls = true;
+            introAudioDone = true;
+            hideWhenDone();
           });
         }
         introAudio.addEventListener("ended", () => {
