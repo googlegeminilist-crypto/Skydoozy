@@ -2398,6 +2398,9 @@
     let hasWalked = false;
     let everLeftHouse = false;
     let wasInHouse = false;
+    let treasureBubbleSuppressUntil = 0;
+    const treasureBubbleExitGraceMs = 2000;
+    const treasureBubbleHouseBuffer = 12;
     const houseSpawn = { x: 0, z: -120 };
     const defaultHouseBounds = {
       x: houseSpawn.x,
@@ -2447,6 +2450,7 @@
         hasWalked = false;
         everLeftHouse = false;
         wasInHouse = false;
+        treasureBubbleSuppressUntil = 0;
         updateIdleHintText();
         try {
           localStorage.removeItem(controlUntilKey);
@@ -2763,6 +2767,7 @@
       const hasPlayer = Boolean(playerState.group);
       const playerX = hasPlayer ? playerState.group.position.x : 0;
       const playerZ = hasPlayer ? playerState.group.position.z : 0;
+      const minBubbleDistanceSq = 26 * 26;
       const candidates = [];
       const visibleCandidates = [];
       for (let i = 0; i < sparkleCount; i++) {
@@ -2771,6 +2776,7 @@
         const dx = sparkleBasePositions[i3] - playerX;
         const dz = sparkleBasePositions[i3 + 2] - playerZ;
         const distSq = dx * dx + dz * dz;
+        if (hasPlayer && distSq < minBubbleDistanceSq) continue;
         candidates.push({ index: i, distSq });
         treasureBubbleWorld.set(
           sparkleBasePositions[i3],
@@ -6794,7 +6800,24 @@
         showPlayerBubble();
       }
       updatePlayerBubble();
-      if (playerMoving && sparklesEnabled && !inHouse) {
+      if (wasInHouse && !inHouse) {
+        treasureBubbleSuppressUntil = nowEpoch + treasureBubbleExitGraceMs;
+      }
+      let hasSpaceFromHouse = true;
+      if (playerState.group && houseBounds) {
+        const dx = Math.abs(playerState.group.position.x - houseBounds.x);
+        const dz = Math.abs(playerState.group.position.z - houseBounds.z);
+        hasSpaceFromHouse =
+          dx > houseBounds.halfWidth + treasureBubbleHouseBuffer ||
+          dz > houseBounds.halfDepth + treasureBubbleHouseBuffer;
+      }
+      const canShowTreasureBubbles =
+        playerMoving &&
+        sparklesEnabled &&
+        !inHouse &&
+        nowEpoch >= treasureBubbleSuppressUntil &&
+        hasSpaceFromHouse;
+      if (canShowTreasureBubbles) {
         if (!treasureBubbleActive) {
           showTreasureBubbles();
         }
