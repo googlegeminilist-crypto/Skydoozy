@@ -3780,6 +3780,10 @@
       if (challengeActive) return;
       clearTimeout(scheduleTimeout);
       if (!canStartChallenge()) return;
+      if (!list.length) {
+        resetChallengeState();
+        return;
+      }
       challengeActive = true;
       if (list.length) {
         challengeStatus.textContent = "A word vanished! Type it in the red box.";
