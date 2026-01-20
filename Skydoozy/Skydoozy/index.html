@@ -1748,6 +1748,10 @@
         btn.addEventListener("click", () => {
           const day = Number(btn.dataset.day);
           if (!Number.isFinite(day)) return;
+          if (isAppView) {
+            ensureAppChallengeReady(day);
+            return;
+          }
           setTreasureListView(day);
           treasureDaySelected = true;
           if (isAppView && !levelSelected) {
@@ -4058,19 +4062,36 @@
         btn.classList.toggle("is-active", seconds === challengeSeconds);
       });
     };
+    const ensureAppChallengeReady = (dayOverride) => {
+      if (!isAppView) return false;
+      if (Number.isFinite(dayOverride)) {
+        setTreasureListView(dayOverride);
+        treasureDaySelected = true;
+      } else if (!treasureDaySelected) {
+        treasureDaySelected = true;
+        setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
+      }
+      if (!levelSelected) {
+        levelSelected = true;
+        updateLevelSelection();
+      }
+      resetChallengeState();
+      startChallenge();
+      return true;
+    };
     if (levelButtons.length) {
       updateLevelSelection();
       levelButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           const seconds = Number(btn.dataset.seconds);
           if (!Number.isFinite(seconds)) return;
-          if (isAppView && !treasureDaySelected) {
-            treasureDaySelected = true;
-            setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
-          }
           levelSelected = true;
           setChallengeSeconds(seconds);
           updateLevelSelection();
+          if (isAppView) {
+            ensureAppChallengeReady(treasureListViewDay || treasureDayIndex);
+            return;
+          }
           if (treasureDaySelected) {
             resetChallengeState();
           }
@@ -4106,10 +4127,18 @@
     };
 
     const startChallenge = () => {
-      const list = getSelectedTreasureList();
+      let list = getSelectedTreasureList();
       if (challengeActive) return;
       clearTimeout(scheduleTimeout);
       if (!canStartChallenge()) return;
+      if (isAppView && !list.length) {
+        const fallback = treasureWordSets[treasureListViewDay - 1] || [];
+        if (fallback.length) {
+          collectedTreasureWordsByDay[treasureListViewDay] = fallback.slice();
+          list = collectedTreasureWordsByDay[treasureListViewDay] || [];
+          renderTreasureList(treasureListViewDay);
+        }
+      }
       if (!list.length) {
         resetChallengeState();
         return;
