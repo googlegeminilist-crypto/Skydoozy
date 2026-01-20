@@ -205,6 +205,31 @@
       opacity: 1;
     }
 
+    .treasure-word-float {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(14, 10, 24, 0.9);
+      border: 1px solid rgba(192, 132, 255, 0.6);
+      color: #e8c8ff;
+      font-size: clamp(0.8rem, 2vw, 1rem);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 6px rgba(192, 132, 255, 0.7);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 9;
+      white-space: nowrap;
+      transition: opacity 0.2s ease;
+    }
+
+    .treasure-word-float.is-visible {
+      opacity: 1;
+    }
+
     .treasure-bubble {
       position: fixed;
       left: 0;
@@ -2424,6 +2449,62 @@
       playerBubble.style.top = `${y}px`;
       playerBubble.classList.add("is-visible");
     };
+    const treasureWordFloatPool = [];
+    const treasureWordFloatCount = 10;
+    const treasureWordFloatDuration = 5000;
+    const treasureWordFloatRise = 42;
+    const treasureWordFloatYOffset = 8;
+    const treasureWordFloatScreen = new THREE.Vector3();
+    const treasureWordFloatSpawn = new THREE.Vector3();
+    const createTreasureWordFloat = () => {
+      const el = document.createElement("div");
+      el.className = "treasure-word-float";
+      document.body.appendChild(el);
+      return {
+        el,
+        world: new THREE.Vector3(),
+        start: 0,
+        active: false
+      };
+    };
+    for (let i = 0; i < treasureWordFloatCount; i++) {
+      treasureWordFloatPool.push(createTreasureWordFloat());
+    }
+    const spawnTreasureWordFloat = (word, world) => {
+      if (!word) return;
+      const entry = treasureWordFloatPool.find((item) => !item.active) || treasureWordFloatPool[0];
+      entry.active = true;
+      entry.start = performance.now();
+      entry.world.copy(world);
+      entry.el.textContent = word;
+      entry.el.style.opacity = "1";
+      entry.el.classList.add("is-visible");
+      updateTreasureWordFloats();
+    };
+    const updateTreasureWordFloats = () => {
+      const now = performance.now();
+      treasureWordFloatPool.forEach((entry) => {
+        if (!entry.active) return;
+        const progress = (now - entry.start) / treasureWordFloatDuration;
+        if (progress >= 1) {
+          entry.active = false;
+          entry.el.classList.remove("is-visible");
+          entry.el.style.opacity = "";
+          return;
+        }
+        treasureWordFloatScreen.copy(entry.world).project(camera);
+        if (treasureWordFloatScreen.z < -1 || treasureWordFloatScreen.z > 1) {
+          entry.el.classList.remove("is-visible");
+          return;
+        }
+        const x = (treasureWordFloatScreen.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-treasureWordFloatScreen.y * 0.5 + 0.5) * window.innerHeight;
+        entry.el.style.left = `${x}px`;
+        entry.el.style.top = `${y - treasureWordFloatRise * progress}px`;
+        entry.el.style.opacity = `${1 - progress}`;
+        entry.el.classList.add("is-visible");
+      });
+    };
     let treasureBubbleShown = false;
     let treasureBubbleActive = false;
     let treasureBubbleTimer = 0;
@@ -2777,7 +2858,15 @@
           sparkleColors[i3 + 2] = 0;
           if (!collectedThisFrame) {
             if (playerCollect) {
-              collectTreasureWord();
+              const collectedWord = collectTreasureWord();
+              if (collectedWord) {
+                treasureWordFloatSpawn.set(
+                  sparkleBasePositions[i3],
+                  sparkleBasePositions[i3 + 1] + treasureWordFloatYOffset,
+                  sparkleBasePositions[i3 + 2]
+                );
+                spawnTreasureWordFloat(collectedWord, treasureWordFloatSpawn);
+              }
             } else if (bipedCollect) {
               collectFruitWord();
               bipedState.group.getWorldPosition(bipedSparkleWorld);
@@ -6412,6 +6501,7 @@
       pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
       updateGroundSparkles(t, delta);
       updateTreasureBubbles();
+      updateTreasureWordFloats();
       if (titleStack) {
         titleStack.classList.toggle("is-walking", playerMoving);
       }
