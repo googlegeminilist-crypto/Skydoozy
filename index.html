@@ -56,6 +56,16 @@
       visibility: hidden;
       pointer-events: none;
     }
+    body.app-view .house-label,
+    body.app-view .house-action-note {
+      display: none !important;
+    }
+    body.app-view .blog-panel,
+    body.app-view .intro-overlay,
+    body.app-view .intro-video,
+    body.app-view .intro-skip {
+      display: none !important;
+    }
 
     .intro-overlay {
       position: fixed;
@@ -1292,6 +1302,14 @@
       }
     })();
     if (isAppView) {
+      document.body.classList.add("app-view");
+      if (houseLabel) {
+        houseLabel.textContent = "";
+        houseLabel.classList.remove("is-visible");
+      }
+      if (houseActionNote) {
+        houseActionNote.classList.remove("is-visible");
+      }
       if (introAudio) {
         introAudio.pause();
         introAudio.muted = true;
@@ -2683,6 +2701,9 @@
     if (characterClickedToday) {
       sparklesEnabled = true;
       updateIdleHintText();
+    }
+    if (isAppView) {
+      unlockWalking();
     }
 
     if (!window.THREE) {
@@ -5069,6 +5090,7 @@
     loadBipedWalker();
 
     const loadFlowerCreature = () => {
+      if (isAppView) return;
       if (!THREE.GLTFLoader) {
         console.warn("GLTFLoader missing. Skipping flower creature.");
         return;
@@ -5417,6 +5439,7 @@
     jungleGroup.add(flyingPlantState.group);
 
     const loadFlyingPlant = () => {
+      if (isAppView) return;
       if (!THREE.GLTFLoader) {
         console.warn("GLTFLoader missing. Skipping flying plant.");
         return;
@@ -5488,6 +5511,7 @@
     jungleGroup.add(flowerFaceState.group);
 
     const loadFlowerFace = () => {
+      if (isAppView) return;
       if (!THREE.GLTFLoader) {
         console.warn("GLTFLoader missing. Skipping flower face.");
         return;
@@ -6519,20 +6543,22 @@
       return plant;
     };
 
-    for (let i = 0; i < 22; i++) {
-      const bluebell = buildBluebell();
-      bluebell.position.set(
-        randomRange(-200, 200),
-        0,
-        randomRange(-220, 100)
-      );
-      bluebell.rotation.y = randomRange(0, Math.PI * 2);
-      bluebell.scale.setScalar(randomRange(2.5, 3.4));
-      jungleGroup.add(bluebell);
-      registerGlowGroup(bluebell, 120, 1.0);
-    }
+    if (!isAppView) {
+      for (let i = 0; i < 22; i++) {
+        const bluebell = buildBluebell();
+        bluebell.position.set(
+          randomRange(-200, 200),
+          0,
+          randomRange(-220, 100)
+        );
+        bluebell.rotation.y = randomRange(0, Math.PI * 2);
+        bluebell.scale.setScalar(randomRange(2.5, 3.4));
+        jungleGroup.add(bluebell);
+        registerGlowGroup(bluebell, 120, 1.0);
+      }
 
-    createPlantWalker();
+      createPlantWalker();
+    }
 
     const buildHouse = () => {
       const houseSize = { width: 78, height: 46, depth: 58 };
@@ -6651,6 +6677,18 @@
     };
 
     const loadHauntedHouse = () => {
+      if (isAppView) {
+        houseBounds = null;
+        houseModel = null;
+        houseClickProxy = null;
+        houseDoorPivot = null;
+        houseLabelAnchorReady = false;
+        if (houseLabel) {
+          houseLabel.textContent = "";
+          houseLabel.classList.remove("is-visible");
+        }
+        return;
+      }
       if (!THREE.GLTFLoader) {
         console.warn("GLTFLoader missing. Falling back to built-in house.");
         buildHouse();
