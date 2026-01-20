@@ -1124,7 +1124,9 @@
         <span class="treasure-list-title" id="treasureListTitle">Collected Words</span>
         <span class="treasure-list-day" id="treasureListDay">Day 1</span>
       </div>
-      <div class="treasure-list-timer" id="treasureListTimer">--</div>
+      <div class="treasure-list-timer" id="treasureListTimer">
+        Click on a day you have collected the words, then click on a level to play.
+      </div>
       <div class="treasure-list-tabs" role="tablist" aria-label="Word lists by day">
         <button class="treasure-list-btn" type="button" data-day="1">Day 1</button>
         <button class="treasure-list-btn" type="button" data-day="2">Day 2</button>
@@ -3764,10 +3766,14 @@
       const secs = total % 60;
       return `${mins}:${String(secs).padStart(2, "0")}`;
     };
+    const treasureTimerHint =
+      "Click on a day you have collected the words, then click on a level to play.";
     const updateTimer = () => {
-      const next = timeLeft > 0 ? formatTimer(timeLeft) : "--";
-      if (challengeTimer) challengeTimer.textContent = next;
-      if (treasureListTimer) treasureListTimer.textContent = next;
+      const timerText = timeLeft > 0 ? formatTimer(timeLeft) : "--";
+      if (challengeTimer) challengeTimer.textContent = timerText;
+      if (treasureListTimer) {
+        treasureListTimer.textContent = timeLeft > 0 ? timerText : treasureTimerHint;
+      }
     };
     const updateRainAllowed = () => {
       rainAllowed = isFirstVisit || challengeSeconds === 300;
