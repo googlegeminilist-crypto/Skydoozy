@@ -127,11 +127,13 @@ struct WebGameView: UIViewRepresentable {
           }
           meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
           document.documentElement.style.width = '100%';
-          document.documentElement.style.height = '100%';
+          document.documentElement.style.height = 'auto';
+          document.documentElement.style.overflow = 'auto';
           document.body.style.width = '100%';
-          document.body.style.height = '100%';
+          document.body.style.height = 'auto';
           document.body.style.margin = '0';
-          document.body.style.overflow = 'hidden';
+          document.body.style.overflow = 'auto';
+          document.body.style.webkitOverflowScrolling = 'touch';
           document.body.classList.remove('intro-open');
           var overlay = document.getElementById('introOverlay');
           if (overlay) {
@@ -182,8 +184,9 @@ struct WebGameView: UIViewRepresentable {
         let view = WKWebView(frame: .zero, configuration: config)
         view.isOpaque = false
         view.backgroundColor = .black
-        view.scrollView.isScrollEnabled = false
-        view.scrollView.bounces = false
+        view.scrollView.isScrollEnabled = true
+        view.scrollView.bounces = true
+        view.scrollView.alwaysBounceVertical = true
         view.scrollView.contentInsetAdjustmentBehavior = .never
         let accessURL = url.deletingLastPathComponent()
         view.loadFileURL(url, allowingReadAccessTo: accessURL)

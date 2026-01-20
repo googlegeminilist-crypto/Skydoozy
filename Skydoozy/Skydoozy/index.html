@@ -69,6 +69,13 @@
     body.app-view .audio-control {
       display: none !important;
     }
+    body.app-view {
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+    }
+    body.app-view .story-panel {
+      overflow-y: auto;
+    }
 
     .intro-overlay {
       position: fixed;
@@ -1740,9 +1747,9 @@
           setTreasureListView(day);
           treasureDaySelected = true;
           resetChallengeState();
-          timeLeft = challengeSeconds;
-          updateTimer();
-          startChallenge();
+          if (canStartChallenge()) {
+            startChallenge();
+          }
         });
       });
     }
@@ -3926,9 +3933,14 @@
     let scheduleTimeout = null;
     let timeLeft = 0;
     let challengeSeconds = 300;
+    let levelSelected = !isAppView;
     let pauseChallengeTimer = false;
     const getSelectedTreasureList = () => collectedTreasureWordsByDay[treasureListViewDay] || [];
-    const canStartChallenge = () => treasureDaySelected;
+    const canStartChallenge = () => {
+      if (!treasureDaySelected) return false;
+      if (isAppView && !levelSelected) return false;
+      return true;
+    };
     const requestChallenge = (delayMs) => {
       if (challengeActive) return;
       clearTimeout(scheduleTimeout);
@@ -4031,10 +4043,17 @@
         btn.addEventListener("click", () => {
           const seconds = Number(btn.dataset.seconds);
           if (!Number.isFinite(seconds)) return;
+          if (isAppView && !treasureDaySelected) {
+            treasureDaySelected = true;
+            setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
+          }
+          levelSelected = true;
           setChallengeSeconds(seconds);
           updateLevelSelection();
           if (treasureDaySelected) {
             resetChallengeState();
+          }
+          if (canStartChallenge()) {
             startChallenge();
           }
         });
