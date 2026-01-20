@@ -126,10 +126,6 @@
     }
 
     .house-label {
-      position: fixed;
-      left: 0;
-      top: 0;
-      transform: translate(-50%, -50%);
       padding: 6px 12px;
       font-size: clamp(1rem, 2.6vw, 1.5rem);
       letter-spacing: 0.04em;
@@ -138,11 +134,14 @@
         0 0 8px rgba(192, 132, 255, 0.9),
         0 0 16px rgba(192, 132, 255, 0.65),
         0 0 28px rgba(120, 40, 255, 0.5);
-      opacity: 0;
+      /* opacity: 0; */
       transition: opacity 0.2s ease;
       pointer-events: none;
       z-index: 7;
       white-space: nowrap;
+      position: absolute;
+      top: -50px;
+      right: -20px;
     }
 
     .house-label.is-visible {
@@ -169,6 +168,74 @@
     }
 
     .biped-label.is-visible {
+      opacity: 1;
+    }
+
+    .player-bubble {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -110%);
+      padding: 8px 14px;
+      border-radius: 16px;
+      background: rgba(12, 20, 32, 0.85);
+      border: 1px solid rgba(124, 255, 149, 0.7);
+      color: #eafff5;
+      font-size: clamp(0.9rem, 2.4vw, 1.1rem);
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 8px rgba(124, 255, 149, 0.65);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      z-index: 8;
+      white-space: nowrap;
+    }
+
+    .player-bubble::after {
+      content: "";
+      position: absolute;
+      left: 22px;
+      bottom: -8px;
+      border-width: 8px 8px 0 8px;
+      border-style: solid;
+      border-color: rgba(12, 20, 32, 0.85) transparent transparent transparent;
+    }
+
+    .player-bubble.is-visible {
+      opacity: 1;
+    }
+
+    .treasure-bubble {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -120%);
+      padding: 6px 12px;
+      border-radius: 16px;
+      background: rgba(8, 14, 26, 0.85);
+      border: 1px solid rgba(255, 210, 102, 0.8);
+      color: #fff2cf;
+      font-size: clamp(0.85rem, 2.2vw, 1rem);
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 8px rgba(255, 210, 102, 0.65);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+      z-index: 8;
+      white-space: nowrap;
+    }
+
+    .treasure-bubble::after {
+      content: "";
+      position: absolute;
+      left: 20px;
+      bottom: -8px;
+      border-width: 8px 8px 0 8px;
+      border-style: solid;
+      border-color: rgba(8, 14, 26, 0.85) transparent transparent transparent;
+    }
+
+    .treasure-bubble.is-visible {
       opacity: 1;
     }
 
@@ -864,6 +931,7 @@
     <button class="audio-btn" id="audioToggle" type="button">Music On</button>
     <button class="audio-btn" id="audioSkip" type="button">Skip</button>
     <button class="audio-btn debug-only" id="debugReset" type="button">Reset Lock</button>
+    <button class="audio-btn debug-only" id="debugNextDay" type="button" title="Localhost only">Next Day</button>
     <canvas class="audio-wave" id="audioWave" width="160" height="36" aria-hidden="true"></canvas>
   </div>
   <audio id="bgAudio" src="45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
@@ -879,8 +947,11 @@
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <canvas id="fireworks"></canvas>
-  <div class="house-label" id="houseLabel">Click me</div>
   <div class="biped-label" id="bipedLabel">My name is Poppy</div>
+  <div class="player-bubble" id="playerBubble">Collect the glowing treasures</div>
+  <div class="treasure-bubble" id="treasureBubble1">Collect me</div>
+  <div class="treasure-bubble" id="treasureBubble2">Collect me</div>
+  <div class="treasure-bubble" id="treasureBubble3">Collect me</div>
   <div class="title-stack">
     <div class="matrix-window">
       <canvas id="matrix"></canvas>
@@ -890,7 +961,7 @@
       </div>
     </div>
     <div class="title-light" aria-hidden="true"></div>
-    <h1>Skydoozy</h1>
+    <h1><div class="house-label" id="houseLabel">Click me</div>Skydoozy</h1>
     <div class="title-hint"></div>
   </div>
   <div class="treasure-complete-banner" id="treasureCompleteBanner">You have found all of the words</div>
@@ -944,11 +1015,13 @@
     const streakValue = document.getElementById("streakValue");
     const scoreBanner = document.querySelector(".score-banner");
     const titleStack = document.querySelector(".title-stack");
+    const titleHeading = titleStack ? titleStack.querySelector("h1") : null;
     const titleHint = document.querySelector(".title-hint");
     const audioToggle = document.getElementById("audioToggle");
     const audioSkip = document.getElementById("audioSkip");
     const audioWave = document.getElementById("audioWave");
     const debugReset = document.getElementById("debugReset");
+    const debugNextDay = document.getElementById("debugNextDay");
     const cursorCanvas = document.getElementById("cursor-canvas");
     const fireworksCanvas = document.getElementById("fireworks");
     const bgAudio = document.getElementById("bgAudio");
@@ -966,25 +1039,56 @@
     const lockTimer = document.getElementById("lockTimer");
     const houseLabel = document.getElementById("houseLabel");
     const bipedLabel = document.getElementById("bipedLabel");
+    const playerBubble = document.getElementById("playerBubble");
+    const treasureBubbles = [
+      document.getElementById("treasureBubble1"),
+      document.getElementById("treasureBubble2"),
+      document.getElementById("treasureBubble3")
+    ].filter(Boolean);
     const poppyLabelDefaultText = "My name is Poppy";
     const poppyLabelNearText = "Push space bar near me to hear voice";
     const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
+    const houseLabelClickedText = "Now use the directional buttons to move around";
+    const playerBubbleText = "Collect the glowing treasures";
+    const treasureBubbleText = "Collect me";
     const debugOverrideKey = "skydoozy-debug";
-    const debugEnabled = (() => {
+    const debugDayOffsetKey = "skydoozy-debug-day-offset";
+    const isLocalHost = (() => {
       try {
-        const url = new URL(window.location.href);
-        const isLocal =
-          window.location.protocol === "file:" ||
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1";
-        if (url.searchParams.get("debug") === "1") {
-          localStorage.setItem(debugOverrideKey, "1");
-        }
-        return isLocal || localStorage.getItem(debugOverrideKey) === "1";
+        return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       } catch (error) {
         return false;
       }
     })();
+    const isLocalEnv = (() => {
+      try {
+        return isLocalHost || window.location.protocol === "file:";
+      } catch (error) {
+        return isLocalHost;
+      }
+    })();
+    const debugEnabled = (() => {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("debug") === "1") {
+          localStorage.setItem(debugOverrideKey, "1");
+        }
+        return isLocalEnv || localStorage.getItem(debugOverrideKey) === "1";
+      } catch (error) {
+        return false;
+      }
+    })();
+    let debugDayOffset = 0;
+    if (isLocalHost) {
+      try {
+        const storedOffset = Number(localStorage.getItem(debugDayOffsetKey));
+        if (Number.isFinite(storedOffset)) {
+          debugDayOffset = storedOffset;
+        }
+      } catch (error) {
+        debugDayOffset = 0;
+      }
+    }
     if (debugEnabled) {
       document.body.classList.add("show-debug");
     }
@@ -1319,6 +1423,33 @@
         if (debugEnabled) {
           resetTreasureProgress();
         }
+      });
+    }
+    if (debugNextDay) {
+      if (!isLocalHost) {
+        debugNextDay.remove();
+      } else {
+        debugNextDay.addEventListener("click", () => {
+          debugDayOffset += 1;
+          try {
+            localStorage.setItem(debugDayOffsetKey, `${debugDayOffset}`);
+          } catch (error) {
+            // Ignore storage failures.
+          }
+          window.location.reload();
+        });
+      }
+    }
+    const setHouseLabelClicked = () => {
+      if (!houseLabel) return;
+      if (houseLabel.textContent === houseLabelClickedText) return;
+      houseLabel.textContent = houseLabelClickedText;
+    };
+    if (houseLabel) {
+      houseLabel.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setHouseLabelClicked();
       });
     }
     if (bgAudio) {
@@ -1969,6 +2100,9 @@
     const lockDurationMs = 24 * 60 * 60 * 1000;
     const getTodayKey = () => {
       const now = new Date();
+      if (debugDayOffset) {
+        now.setDate(now.getDate() + debugDayOffset);
+      }
       const year = now.getFullYear();
       const month = `${now.getMonth() + 1}`.padStart(2, "0");
       const day = `${now.getDate()}`.padStart(2, "0");
@@ -2228,16 +2362,136 @@
         houseLabel.classList.remove("is-visible");
         return;
       }
-      houseLabelScreen.copy(houseLabelAnchor).project(camera);
-      if (houseLabelScreen.z < -1 || houseLabelScreen.z > 1) {
+      if (!titleHeading) {
         houseLabel.classList.remove("is-visible");
         return;
       }
-      const x = (houseLabelScreen.x * 0.5 + 0.5) * window.innerWidth;
-      const y = (-houseLabelScreen.y * 0.5 + 0.5) * window.innerHeight;
+      const rect = titleHeading.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        houseLabel.classList.remove("is-visible");
+        return;
+      }
+      const x = rect.right;
+      const y = rect.top;
       houseLabel.style.left = `${x}px`;
       houseLabel.style.top = `${y}px`;
       houseLabel.classList.add("is-visible");
+    };
+    let playerBubbleShown = false;
+    let playerBubbleActive = false;
+    let playerBubbleTimer = 0;
+    const playerBubbleWorld = new THREE.Vector3();
+    const playerBubbleScreen = new THREE.Vector3();
+    const playerBubbleOffset = 18;
+    const hidePlayerBubble = () => {
+      if (!playerBubble) return;
+      playerBubbleActive = false;
+      playerBubble.classList.remove("is-visible");
+      if (playerBubbleTimer) {
+        window.clearTimeout(playerBubbleTimer);
+        playerBubbleTimer = 0;
+      }
+    };
+    const showPlayerBubble = () => {
+      if (!playerBubble || playerBubbleShown) return;
+      playerBubbleShown = true;
+      playerBubbleActive = true;
+      playerBubble.textContent = playerBubbleText;
+      if (playerBubbleTimer) {
+        window.clearTimeout(playerBubbleTimer);
+      }
+      updatePlayerBubble();
+      playerBubbleTimer = window.setTimeout(() => {
+        hidePlayerBubble();
+      }, 5000);
+    };
+    const updatePlayerBubble = () => {
+      if (!playerBubble || !playerBubbleActive) return;
+      if (!playerState.group || !playerState.group.visible) {
+        playerBubble.classList.remove("is-visible");
+        return;
+      }
+      playerState.group.getWorldPosition(playerBubbleWorld);
+      playerBubbleWorld.y += playerBubbleOffset;
+      playerBubbleScreen.copy(playerBubbleWorld).project(camera);
+      if (playerBubbleScreen.z < -1 || playerBubbleScreen.z > 1) {
+        playerBubble.classList.remove("is-visible");
+        return;
+      }
+      const x = (playerBubbleScreen.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-playerBubbleScreen.y * 0.5 + 0.5) * window.innerHeight;
+      playerBubble.style.left = `${x}px`;
+      playerBubble.style.top = `${y}px`;
+      playerBubble.classList.add("is-visible");
+    };
+    let treasureBubbleShown = false;
+    let treasureBubbleActive = false;
+    let treasureBubbleTimer = 0;
+    const treasureBubbleTargets = [];
+    const treasureBubbleWorld = new THREE.Vector3();
+    const treasureBubbleScreen = new THREE.Vector3();
+    const treasureBubbleOffset = 10;
+    const hideTreasureBubbles = () => {
+      treasureBubbleActive = false;
+      treasureBubbleTargets.length = 0;
+      if (treasureBubbleTimer) {
+        window.clearTimeout(treasureBubbleTimer);
+        treasureBubbleTimer = 0;
+      }
+      treasureBubbles.forEach((bubble) => bubble.classList.remove("is-visible"));
+    };
+    const assignTreasureBubbleTargets = () => {
+      treasureBubbleTargets.length = 0;
+      if (!treasureBubbles.length || !extraGlowOrbs.length) return;
+      const shuffled = extraGlowOrbs.slice();
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const count = Math.min(treasureBubbles.length, shuffled.length);
+      for (let i = 0; i < count; i++) {
+        treasureBubbleTargets.push({ bubble: treasureBubbles[i], source: shuffled[i] });
+      }
+      for (let i = count; i < treasureBubbles.length; i++) {
+        treasureBubbles[i].classList.remove("is-visible");
+      }
+    };
+    const showTreasureBubbles = () => {
+      if (treasureBubbleShown || !treasureBubbles.length) return;
+      treasureBubbleShown = true;
+      treasureBubbleActive = true;
+      treasureBubbles.forEach((bubble) => {
+        bubble.textContent = treasureBubbleText;
+      });
+      assignTreasureBubbleTargets();
+      updateTreasureBubbles();
+      if (treasureBubbleTimer) {
+        window.clearTimeout(treasureBubbleTimer);
+      }
+      treasureBubbleTimer = window.setTimeout(() => {
+        hideTreasureBubbles();
+      }, 5000);
+    };
+    const updateTreasureBubbles = () => {
+      if (!treasureBubbleActive) return;
+      treasureBubbleTargets.forEach((entry) => {
+        if (!entry.source || !entry.source.group) {
+          entry.bubble.classList.remove("is-visible");
+          return;
+        }
+        entry.source.group.getWorldPosition(treasureBubbleWorld);
+        treasureBubbleWorld.y += treasureBubbleOffset;
+        treasureBubbleScreen.copy(treasureBubbleWorld).project(camera);
+        if (treasureBubbleScreen.z < -1 || treasureBubbleScreen.z > 1) {
+          entry.bubble.classList.remove("is-visible");
+          return;
+        }
+        const x = (treasureBubbleScreen.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-treasureBubbleScreen.y * 0.5 + 0.5) * window.innerHeight;
+        entry.bubble.style.left = `${x}px`;
+        entry.bubble.style.top = `${y}px`;
+        entry.bubble.classList.add("is-visible");
+      });
     };
     const bipedLabelWorld = new THREE.Vector3();
     const bipedLabelScreen = new THREE.Vector3();
@@ -2653,6 +2907,7 @@
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObject(target, true);
       if (!hits.length) return;
+      setHouseLabelClicked();
       unlockWalking();
     };
     const handleCharacterClick = (event) => {
@@ -6097,6 +6352,12 @@
       if (playerState.group) {
         playerState.group.visible = !inHouse;
       }
+      if (playerState.group && !inHouse && !playerBubbleShown) {
+        showPlayerBubble();
+        showTreasureBubbles();
+      }
+      updatePlayerBubble();
+      updateTreasureBubbles();
       if (houseDoorPivot) {
         const doorTarget = inHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
         const lerp = Math.min(1, delta * houseDoorSpeed);
