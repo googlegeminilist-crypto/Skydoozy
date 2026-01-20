@@ -2708,12 +2708,15 @@
     let treasureBubbleShown = false;
     let treasureBubbleActive = false;
     let treasureBubbleTimer = 0;
+    let treasureBubbleRefreshAt = 0;
+    const treasureBubbleRefreshMs = 1200;
     const treasureBubbleTargets = [];
     const treasureBubbleWorld = new THREE.Vector3();
     const treasureBubbleScreen = new THREE.Vector3();
     const treasureBubbleOffset = 10;
     const hideTreasureBubbles = () => {
       treasureBubbleActive = false;
+      treasureBubbleShown = false;
       treasureBubbleTargets.length = 0;
       if (treasureBubbleTimer) {
         window.clearTimeout(treasureBubbleTimer);
@@ -2762,16 +2765,25 @@
         bubble.textContent = treasureBubbleText;
       });
       assignTreasureBubbleTargets();
+      treasureBubbleRefreshAt = performance.now() + treasureBubbleRefreshMs;
       updateTreasureBubbles();
-      if (treasureBubbleTimer) {
-        window.clearTimeout(treasureBubbleTimer);
-      }
-      treasureBubbleTimer = window.setTimeout(() => {
-        hideTreasureBubbles();
-      }, 5000);
     };
     const updateTreasureBubbles = () => {
       if (!treasureBubbleActive) return;
+      const now = performance.now();
+      let needsRefresh = treasureBubbleTargets.length === 0 || now >= treasureBubbleRefreshAt;
+      if (!needsRefresh) {
+        for (const entry of treasureBubbleTargets) {
+          if (typeof entry.index !== "number" || !sparkleActive[entry.index]) {
+            needsRefresh = true;
+            break;
+          }
+        }
+      }
+      if (needsRefresh) {
+        treasureBubbleRefreshAt = now + treasureBubbleRefreshMs;
+        assignTreasureBubbleTargets();
+      }
       treasureBubbleTargets.forEach((entry) => {
         if (typeof entry.index !== "number" || !sparkleActive[entry.index]) {
           entry.bubble.classList.remove("is-visible");
@@ -6743,9 +6755,15 @@
       }
       if (playerState.group && !inHouse && !playerBubbleShown) {
         showPlayerBubble();
-        showTreasureBubbles();
       }
       updatePlayerBubble();
+      if (playerMoving && sparklesEnabled && !inHouse) {
+        if (!treasureBubbleActive) {
+          showTreasureBubbles();
+        }
+      } else if (treasureBubbleActive) {
+        hideTreasureBubbles();
+      }
       if (houseDoorPivot) {
         const doorTarget = inHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
         const lerp = Math.min(1, delta * houseDoorSpeed);
