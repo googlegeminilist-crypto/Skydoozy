@@ -7,13 +7,28 @@
 
 import SwiftUI
 import AVKit
+import WebKit
 
 struct ContentView: View {
     private let introVideoName = "Firefly Skydoozy animation logo with matrix code and rainbow same vido without word animation 636432"
     @State private var introPlayer: AVPlayer?
+    @State private var introEndObserver: NSObjectProtocol?
+    @State private var showWeb = false
 
     var body: some View {
-        introVideoFullScreen
+        Group {
+            if showWeb {
+                WebGameView(url: webGameURL)
+                    .ignoresSafeArea()
+            } else {
+                introVideoFullScreen
+            }
+        }
+    }
+
+    private var webGameURL: URL {
+        Bundle.main.url(forResource: "index", withExtension: "html")
+            ?? URL(string: "https://skydoozy.skybammy.com/")!
     }
 
     @ViewBuilder
@@ -28,18 +43,39 @@ struct ContentView: View {
             }
             .onAppear {
                 if introPlayer == nil {
-                    introPlayer = AVPlayer(url: url)
-                    introPlayer?.play()
+                    let player = AVPlayer(url: url)
+                    introPlayer = player
+                    attachIntroEndObserver(to: player)
+                    player.play()
                 }
             }
             .onDisappear {
                 introPlayer?.pause()
+                clearIntroEndObserver()
             }
         } else {
             Text("Intro video not found in bundle.")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black)
+        }
+    }
+
+    private func attachIntroEndObserver(to player: AVPlayer) {
+        clearIntroEndObserver()
+        introEndObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: player.currentItem,
+            queue: .main
+        ) { _ in
+            showWeb = true
+        }
+    }
+
+    private func clearIntroEndObserver() {
+        if let observer = introEndObserver {
+            NotificationCenter.default.removeObserver(observer)
+            introEndObserver = nil
         }
     }
 }
@@ -59,6 +95,27 @@ struct IntroVideoPlayer: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         if uiViewController.player !== player {
             uiViewController.player = player
+        }
+    }
+}
+
+struct WebGameView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.mediaTypesRequiringUserActionForPlayback = []
+        let view = WKWebView(frame: .zero, configuration: config)
+        view.isOpaque = false
+        view.backgroundColor = .black
+        view.scrollView.isScrollEnabled = false
+        view.load(URLRequest(url: url))
+        return view
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        if uiView.url != url {
+            uiView.load(URLRequest(url: url))
         }
     }
 }
