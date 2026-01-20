@@ -1816,9 +1816,8 @@
         }
         treasureCompleteTimeout = setTimeout(() => {
           treasureCompleteBanner.classList.remove("is-visible");
-        }, 6000);
+        }, 5000);
       }
-      triggerFireworks(5200);
     };
     const resetTreasureComplete = () => {
       treasureCompleteShown = false;
@@ -1978,6 +1977,7 @@
       if (!wordCloud) return;
       const next = pickTreasureWord();
       if (!next) {
+        triggerFireworks(5000);
         showTreasureComplete();
         return;
       }
@@ -1990,10 +1990,8 @@
       saveTreasureWords();
       const treasureCompleteNow = isTreasureSetComplete();
       if (treasureCompleteNow) {
+        triggerFireworks(5000);
         showTreasureComplete();
-        if (treasureDayIndex === 3) {
-          triggerFireworks(5200);
-        }
       }
       enableWordListMode();
       words.forEach((item) => item.classList.add("is-collected"));
