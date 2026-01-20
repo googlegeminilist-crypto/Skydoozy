@@ -148,6 +148,22 @@
       opacity: 1;
     }
 
+    .house-action-note {
+      display: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(12, 18, 30, 0.45);
+      border: 1px solid rgba(192, 132, 255, 0.25);
+      color: #c084ff;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 8px rgba(192, 132, 255, 0.6);
+    }
+
+    .house-action-note.is-visible {
+      display: block;
+    }
+
     .biped-label {
       position: fixed;
       left: 0;
@@ -1120,6 +1136,7 @@
       </div>
       <ul class="treasure-list" id="treasureList"></ul>
     </div>
+    <div class="house-action-note" id="houseActionNote">Now use the arrow keys to move around</div>
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
       <li style="--x: 300; --y: -250; --dx: -8; --dy: 6; --d: 16;">Basketball</li>
@@ -1185,6 +1202,7 @@
     }
     const lockTimer = document.getElementById("lockTimer");
     const houseLabel = document.getElementById("houseLabel");
+    const houseActionNote = document.getElementById("houseActionNote");
     const bipedLabel = document.getElementById("bipedLabel");
     const playerBubble = document.getElementById("playerBubble");
     const treasureList = document.getElementById("treasureList");
@@ -1616,8 +1634,12 @@
     }
     const setHouseLabelClicked = () => {
       if (!houseLabel) return;
-      if (houseLabel.textContent === houseLabelClickedText) return;
-      houseLabel.textContent = houseLabelClickedText;
+      houseLabel.textContent = "";
+      houseLabel.classList.remove("is-visible");
+      if (houseActionNote) {
+        houseActionNote.textContent = houseLabelClickedText;
+        houseActionNote.classList.add("is-visible");
+      }
     };
     if (houseLabel) {
       houseLabel.addEventListener("pointerdown", (event) => {
