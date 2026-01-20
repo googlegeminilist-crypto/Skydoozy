@@ -627,6 +627,10 @@
       color: rgba(215, 236, 255, 0.6);
     }
 
+    .treasure-list li.is-missing {
+      visibility: hidden;
+    }
+
     .word-cloud {
       display: none;
       list-style: none;
@@ -1108,9 +1112,9 @@
     <div class="level-select" aria-label="Difficulty levels">
       <div class="level-select-title">Levels</div>
       <ul class="level-list">
-        <li><button class="level-btn" type="button" data-level="1" data-seconds="300">Level 1</button></li>
-        <li><button class="level-btn" type="button" data-level="2" data-seconds="240">Level 2</button></li>
-        <li><button class="level-btn" type="button" data-level="3" data-seconds="180">Level 3</button></li>
+        <li><button class="level-btn" type="button" data-level="1" data-seconds="300">Level 1 5 minutes</button></li>
+        <li><button class="level-btn" type="button" data-level="2" data-seconds="240">Level 2 4 minutes</button></li>
+        <li><button class="level-btn" type="button" data-level="3" data-seconds="120">Level 3 2 minutes</button></li>
       </ul>
     </div>
     <p>Training your memory is very good for your brain. It can also feel rewarding when you get a word correct—even more so if you can keep the streak going without getting one wrong. It can also be therapeutic because it's all you think about when you do it, so all your other thoughts fade away.</p>
@@ -1167,6 +1171,9 @@
     const treasureListTitleText = "Collected Words";
     let treasureDaySelected = false;
     let treasureListViewDay = 0;
+    let activeListWordIndex = null;
+    let activeListWordDay = 0;
+    let lastListWordIndex = null;
     const treasureBubbles = [
       document.getElementById("treasureBubble1"),
       document.getElementById("treasureBubble2"),
@@ -1576,6 +1583,8 @@
           if (!Number.isFinite(day)) return;
           setTreasureListView(day);
           treasureDaySelected = true;
+          resetChallengeState();
+          requestChallenge(0);
         });
       });
     }
@@ -2122,6 +2131,9 @@
       collectedTreasureSet.add(normalized);
       collectedTreasureWords.push(next);
       saveTreasureWords();
+      if (treasureDaySelected && treasureListViewDay === treasureDayIndex) {
+        requestChallenge(0);
+      }
       const treasureCompleteNow = isTreasureSetComplete();
       if (treasureCompleteNow) {
         triggerFireworks(5000);
@@ -2169,9 +2181,13 @@
         treasureList.appendChild(empty);
         return;
       }
-      list.forEach((word) => {
+      list.forEach((word, index) => {
         const item = document.createElement("li");
         item.textContent = word;
+        item.dataset.index = `${index}`;
+        if (day === activeListWordDay && index === activeListWordIndex) {
+          item.classList.add("is-missing");
+        }
         treasureList.appendChild(item);
       });
     };
@@ -3597,7 +3613,67 @@
     let timeLeft = 0;
     let challengeSeconds = 300;
     let pauseChallengeTimer = false;
-    const canStartChallenge = () => treasureDaySelected && collectedTreasureWords.length > 0;
+    const getSelectedTreasureList = () => collectedTreasureWordsByDay[treasureListViewDay] || [];
+    const canStartChallenge = () => treasureDaySelected;
+    const requestChallenge = (delayMs) => {
+      if (challengeActive) return;
+      clearTimeout(scheduleTimeout);
+      scheduleTimeout = null;
+      if (!canStartChallenge()) {
+        updateTimer();
+        return;
+      }
+      if (!getSelectedTreasureList().length) {
+        timeLeft = 0;
+        updateTimer();
+        scheduleTimeout = setTimeout(() => requestChallenge(delayMs), 2000);
+        return;
+      }
+      scheduleTimeout = setTimeout(startChallenge, delayMs);
+    };
+    const pickNextListWordIndex = (listLength) => {
+      if (!listLength) return null;
+      if (listLength === 1) {
+        lastListWordIndex = 0;
+        return 0;
+      }
+      let index = Math.floor(Math.random() * listLength);
+      if (lastListWordIndex !== null && listLength > 1) {
+        let attempts = 0;
+        while (index === lastListWordIndex && attempts < 6) {
+          index = Math.floor(Math.random() * listLength);
+          attempts += 1;
+        }
+      }
+      lastListWordIndex = index;
+      return index;
+    };
+    const hideListWord = (day, index) => {
+      if (!treasureList || day !== treasureListViewDay) return;
+      const item = treasureList.querySelector(`li[data-index="${index}"]`);
+      if (item) item.classList.add("is-missing");
+    };
+    const revealListWord = () => {
+      if (activeListWordIndex === null) return;
+      if (treasureList && activeListWordDay === treasureListViewDay) {
+        const item = treasureList.querySelector(`li[data-index="${activeListWordIndex}"]`);
+        if (item) item.classList.remove("is-missing");
+      }
+      activeListWordIndex = null;
+      activeListWordDay = 0;
+      activeWord = null;
+    };
+    const resetChallengeState = () => {
+      challengeActive = false;
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      clearTimeout(scheduleTimeout);
+      scheduleTimeout = null;
+      revealListWord();
+      lastListWordIndex = null;
+      timeLeft = 0;
+      updateTimer();
+    };
     const isFirstVisit = (() => {
       const key = "skydoozy-visited";
       try {
@@ -3662,15 +3738,11 @@
       clearInterval(countdownInterval);
       countdownInterval = null;
       clearTimeout(scheduleTimeout);
-      if (activeWord) {
-        randomizeWordPosition(activeWord);
-        activeWord.style.visibility = "visible";
-        activeWord = null;
-      }
+      revealListWord();
       if (message) challengeStatus.textContent = message;
       timeLeft = 0;
       updateTimer();
-      scheduleTimeout = setTimeout(startChallenge, 9000 + Math.random() * 4000);
+      requestChallenge(0);
     };
 
     const tick = () => {
@@ -3685,20 +3757,25 @@
     };
 
     const startChallenge = () => {
-      if (challengeActive || words.length === 0) return;
+      const list = getSelectedTreasureList();
+      if (challengeActive) return;
       clearTimeout(scheduleTimeout);
-      if (!canStartChallenge()) {
-        scheduleTimeout = setTimeout(startChallenge, 2000);
+      if (!canStartChallenge()) return;
+      if (!list.length) {
+        requestChallenge(2000);
         return;
       }
       challengeActive = true;
       challengeStatus.textContent = "A word vanished! Type it in the red box.";
-      activeWord = pickNextWord();
-      if (!activeWord) {
+      const nextIndex = pickNextListWordIndex(list.length);
+      if (nextIndex === null) {
         challengeActive = false;
         return;
       }
-      activeWord.style.visibility = "hidden";
+      activeWord = list[nextIndex];
+      activeListWordIndex = nextIndex;
+      activeListWordDay = treasureListViewDay;
+      hideListWord(activeListWordDay, activeListWordIndex);
       timeLeft = challengeSeconds;
       updateTimer();
       challengeInput.value = "";
@@ -3709,7 +3786,7 @@
     const submitGuess = () => {
       if (!challengeActive || !activeWord) return;
       const guess = challengeInput.value.trim().toLowerCase();
-      const target = activeWord.textContent.trim().toLowerCase();
+      const target = activeWord.trim().toLowerCase();
       if (guess === target) {
         challengeStatus.textContent = "Correct!";
         setScore(score + 10);
@@ -3729,8 +3806,6 @@
         challengeInput.value = "";
       }
     });
-
-    scheduleTimeout = setTimeout(startChallenge, 9000);
 
     // Jungle-plant cursor built with Three.js
     const cursorScene = new THREE.Scene();
@@ -6671,7 +6746,7 @@
         playerState.parts.leafRight.rotation.z = playerState.parts.leafRightBase - leafWave;
         playerState.parts.head.rotation.y = playerMoving ? Math.sin(t * 3.6) * 0.2 : Math.sin(t * 1.6) * 0.12;
       }
-      pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
+      pauseChallengeTimer = false;
       updateGroundSparkles(t, delta);
       updateTreasureBubbles();
       updateTreasureWordFloats();
