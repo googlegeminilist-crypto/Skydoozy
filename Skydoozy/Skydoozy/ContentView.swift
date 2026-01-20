@@ -105,10 +105,49 @@ struct WebGameView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
+        let userScriptSource = """
+        (function() {
+          var meta = document.querySelector('meta[name=viewport]');
+          if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'viewport';
+            document.head.appendChild(meta);
+          }
+          meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+          document.documentElement.style.width = '100%';
+          document.documentElement.style.height = '100%';
+          document.body.style.width = '100%';
+          document.body.style.height = '100%';
+          document.body.style.margin = '0';
+          document.body.style.overflow = 'hidden';
+          document.body.classList.remove('intro-open');
+          var overlay = document.getElementById('introOverlay');
+          if (overlay) {
+            overlay.classList.add('is-hidden');
+            overlay.setAttribute('aria-hidden', 'true');
+          }
+          var hideSelectors = ['.blog-panel', '.intro-overlay', '.intro-video', '.intro-skip', 'video'];
+          hideSelectors.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+              el.style.display = 'none';
+            });
+          });
+          document.querySelectorAll('video').forEach(function(el) {
+            try { el.pause(); } catch (e) {}
+            el.removeAttribute('src');
+          });
+        })();
+        """
+        let script = WKUserScript(source: userScriptSource, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        let controller = WKUserContentController()
+        controller.addUserScript(script)
+        config.userContentController = controller
         let view = WKWebView(frame: .zero, configuration: config)
         view.isOpaque = false
         view.backgroundColor = .black
         view.scrollView.isScrollEnabled = false
+        view.scrollView.bounces = false
+        view.scrollView.contentInsetAdjustmentBehavior = .never
         view.load(URLRequest(url: url))
         return view
     }
