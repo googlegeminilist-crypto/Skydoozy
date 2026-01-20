@@ -2728,12 +2728,18 @@
     const assignTreasureBubbleTargets = () => {
       treasureBubbleTargets.length = 0;
       if (!treasureBubbles.length) return;
+      const hasPlayer = Boolean(playerState.group);
+      const playerX = hasPlayer ? playerState.group.position.x : 0;
+      const playerZ = hasPlayer ? playerState.group.position.z : 0;
       const candidates = [];
       const visibleCandidates = [];
       for (let i = 0; i < sparkleCount; i++) {
         if (!sparkleActive[i]) continue;
         const i3 = i * 3;
-        candidates.push(i);
+        const dx = sparkleBasePositions[i3] - playerX;
+        const dz = sparkleBasePositions[i3 + 2] - playerZ;
+        const distSq = dx * dx + dz * dz;
+        candidates.push({ index: i, distSq });
         treasureBubbleWorld.set(
           sparkleBasePositions[i3],
           sparkleBasePositions[i3 + 1],
@@ -2742,17 +2748,15 @@
         treasureBubbleScreen.copy(treasureBubbleWorld).project(camera);
         if (treasureBubbleScreen.z < -1 || treasureBubbleScreen.z > 1) continue;
         if (Math.abs(treasureBubbleScreen.x) > 0.95 || Math.abs(treasureBubbleScreen.y) > 0.95) continue;
-        visibleCandidates.push(i);
+        visibleCandidates.push({ index: i, distSq });
       }
-      const pool = visibleCandidates.length ? visibleCandidates : candidates;
-      if (!pool.length) return;
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
+      const poolSource = hasPlayer && visibleCandidates.length ? visibleCandidates : candidates;
+      if (!poolSource.length) return;
+      poolSource.sort((a, b) => a.distSq - b.distSq);
+      const pool = poolSource.slice(0, treasureBubbles.length);
       const count = Math.min(treasureBubbles.length, pool.length);
       for (let i = 0; i < count; i++) {
-        treasureBubbleTargets.push({ bubble: treasureBubbles[i], index: pool[i] });
+        treasureBubbleTargets.push({ bubble: treasureBubbles[i], index: pool[i].index });
       }
       for (let i = count; i < treasureBubbles.length; i++) {
         treasureBubbles[i].classList.remove("is-visible");
