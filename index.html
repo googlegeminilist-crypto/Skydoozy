@@ -549,7 +549,86 @@
       pointer-events: none;
     }
 
+    .treasure-list-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(12, 18, 30, 0.55);
+      border: 1px solid rgba(155, 213, 255, 0.18);
+      box-shadow: inset 0 0 12px rgba(10, 16, 28, 0.25);
+    }
+
+    .treasure-list-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      color: #d9b6ff;
+      text-shadow: 0 0 8px rgba(192, 132, 255, 0.5);
+    }
+
+    .treasure-list-title {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .treasure-list-day {
+      font-size: 0.85rem;
+      color: rgba(155, 213, 255, 0.8);
+    }
+
+    .treasure-list-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .treasure-list-btn {
+      border: 1px solid rgba(155, 213, 255, 0.5);
+      background: rgba(8, 12, 24, 0.6);
+      color: #d7ecff;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 4px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .treasure-list-btn.is-active {
+      background: rgba(192, 132, 255, 0.2);
+      border-color: rgba(192, 132, 255, 0.8);
+      color: #f5ddff;
+      box-shadow: 0 0 10px rgba(192, 132, 255, 0.4);
+    }
+
+    .treasure-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 6px 10px;
+      max-height: 140px;
+      overflow: auto;
+    }
+
+    .treasure-list li {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e9f4ff;
+      text-shadow: 0 0 6px rgba(125, 200, 255, 0.3);
+    }
+
+    .treasure-list li.is-empty {
+      grid-column: 1 / -1;
+      font-weight: 500;
+      color: rgba(215, 236, 255, 0.6);
+    }
+
     .word-cloud {
+      display: none;
       list-style: none;
       padding: 0;
       margin: 0;
@@ -998,6 +1077,22 @@
       </div>
       <div class="matrix-microcopy">If correct get 10 points. If not, lose 10 points.</div>
     </div>
+    <div class="treasure-list-panel" aria-label="Collected word lists">
+      <div class="treasure-list-heading">
+        <span class="treasure-list-title" id="treasureListTitle">Sport</span>
+        <span class="treasure-list-day" id="treasureListDay">Day 1</span>
+      </div>
+      <div class="treasure-list-tabs" role="tablist" aria-label="Word lists by day">
+        <button class="treasure-list-btn" type="button" data-day="1">Day 1</button>
+        <button class="treasure-list-btn" type="button" data-day="2">Day 2</button>
+        <button class="treasure-list-btn" type="button" data-day="3">Day 3</button>
+        <button class="treasure-list-btn" type="button" data-day="4">Day 4</button>
+        <button class="treasure-list-btn" type="button" data-day="5">Day 5</button>
+        <button class="treasure-list-btn" type="button" data-day="6">Day 6</button>
+        <button class="treasure-list-btn" type="button" data-day="7">Day 7</button>
+      </div>
+      <ul class="treasure-list" id="treasureList"></ul>
+    </div>
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
       <li style="--x: 300; --y: -250; --dx: -8; --dy: 6; --d: 16;">Basketball</li>
@@ -1065,6 +1160,12 @@
     const houseLabel = document.getElementById("houseLabel");
     const bipedLabel = document.getElementById("bipedLabel");
     const playerBubble = document.getElementById("playerBubble");
+    const treasureList = document.getElementById("treasureList");
+    const treasureListTitle = document.getElementById("treasureListTitle");
+    const treasureListDay = document.getElementById("treasureListDay");
+    const treasureListButtons = document.querySelectorAll(".treasure-list-btn");
+    const treasureListLabels = ["Sport"];
+    let treasureListViewDay = 0;
     const treasureBubbles = [
       document.getElementById("treasureBubble1"),
       document.getElementById("treasureBubble2"),
@@ -1467,6 +1568,15 @@
         });
       }
     }
+    if (treasureListButtons.length) {
+      treasureListButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const day = Number(btn.dataset.day);
+          if (!Number.isFinite(day)) return;
+          setTreasureListView(day);
+        });
+      });
+    }
     const setHouseLabelClicked = () => {
       if (!houseLabel) return;
       if (houseLabel.textContent === houseLabelClickedText) return;
@@ -1801,7 +1911,7 @@
     };
 
     const treasureWordSets = [
-      ["Shop", "Church", "House", "School", "Hospital", "Hotel", "Pub", "Castle", "Garage", "Cinema"],
+      ["Tennis", "Basketball", "Chess", "Football", "Badminton", "Table Tennis", "Cricket", "Hockey", "Golf", "Rugby"],
       ["Green", "Orange", "Yellow", "Blue", "Purple", "Red", "Brown", "White", "Black", "Pink"],
       ["Rose", "Lilly", "Tulip", "Daffodil", "Sunflower", "Daisy", "Lavender", "Marigold", "Poppy", "Orchid"],
       ["Blackbiard", "Sparrow", "Robin", "Dove", "Starling", "Blue Tit", "Pigeon", "Crow", "Seagull", "Goldfinch"],
@@ -2026,22 +2136,77 @@
       return next;
     };
     const treasureWordsKey = "skydoozy-treasure-words";
+    const treasureWordsByDayKey = "skydoozy-treasure-words-by-day";
+    let collectedTreasureWordsByDay = {};
     let collectedTreasureWords = [];
     let collectedTreasureSet = new Set();
+    const sanitizeTreasureList = (list) => {
+      if (!Array.isArray(list)) return [];
+      const unique = [];
+      const seen = new Set();
+      list.forEach((item) => {
+        if (typeof item !== "string") return;
+        const trimmed = item.trim();
+        if (!trimmed) return;
+        const normalized = normalizeTreasureWord(trimmed);
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        unique.push(trimmed);
+      });
+      return unique;
+    };
+    const clampTreasureDay = (day) => Math.max(1, Math.min(day, treasureWordSets.length));
+    const updateTreasureListHeader = (day) => {
+      if (treasureListTitle) {
+        treasureListTitle.textContent = treasureListLabels[day - 1] || `Day ${day}`;
+      }
+      if (treasureListDay) {
+        treasureListDay.textContent = `Day ${day}`;
+      }
+    };
+    const renderTreasureList = (day) => {
+      if (!treasureList) return;
+      treasureList.innerHTML = "";
+      const list = collectedTreasureWordsByDay[day] || [];
+      if (!list.length) {
+        const empty = document.createElement("li");
+        empty.className = "is-empty";
+        empty.textContent = "No words collected yet.";
+        treasureList.appendChild(empty);
+        return;
+      }
+      list.forEach((word) => {
+        const item = document.createElement("li");
+        item.textContent = word;
+        treasureList.appendChild(item);
+      });
+    };
+    const setTreasureListView = (day) => {
+      treasureListViewDay = clampTreasureDay(day);
+      updateTreasureListHeader(treasureListViewDay);
+      renderTreasureList(treasureListViewDay);
+      treasureListButtons.forEach((btn) => {
+        const btnDay = Number(btn.dataset.day);
+        btn.classList.toggle("is-active", btnDay === treasureListViewDay);
+      });
+    };
     const syncTreasureSet = () => {
       collectedTreasureSet = new Set(collectedTreasureWords.map(normalizeTreasureWord));
     };
     const resetTreasureList = () => {
       collectedTreasureWords = [];
+      collectedTreasureWordsByDay = {};
       collectedTreasureSet = new Set();
       resetTreasureComplete();
       treasureWordBag = [];
       lastTreasureWord = null;
       try {
         localStorage.removeItem(treasureWordsKey);
+        localStorage.removeItem(treasureWordsByDayKey);
       } catch (error) {
         // Ignore storage failures.
       }
+      setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
       if (!wordCloud) return;
       while (words.length > baseWordCount) {
         const word = words.pop();
@@ -2082,26 +2247,37 @@
     };
     const loadTreasureWords = () => {
       if (!wordCloud) return;
+      collectedTreasureWordsByDay = {};
       try {
-        const stored = JSON.parse(localStorage.getItem(treasureWordsKey) || "[]");
-        if (Array.isArray(stored)) {
-          const unique = [];
-          const seen = new Set();
-          stored.forEach((item) => {
-            if (typeof item !== "string") return;
-            const trimmed = item.trim();
-            if (!trimmed) return;
-            const normalized = normalizeTreasureWord(trimmed);
-            if (seen.has(normalized)) return;
-            seen.add(normalized);
-            unique.push(trimmed);
+        const storedByDay = JSON.parse(localStorage.getItem(treasureWordsByDayKey) || "{}");
+        if (storedByDay && typeof storedByDay === "object") {
+          Object.entries(storedByDay).forEach(([key, value]) => {
+            const day = Number(key);
+            if (!Number.isFinite(day) || day <= 0) return;
+            const sanitized = sanitizeTreasureList(value);
+            if (sanitized.length) {
+              collectedTreasureWordsByDay[day] = sanitized;
+            }
           });
-          collectedTreasureWords = unique;
         }
       } catch (error) {
-        collectedTreasureWords = [];
+        collectedTreasureWordsByDay = {};
       }
+      if (!Object.keys(collectedTreasureWordsByDay).length) {
+        try {
+          const legacy = JSON.parse(localStorage.getItem(treasureWordsKey) || "[]");
+          const sanitized = sanitizeTreasureList(legacy);
+          if (sanitized.length) {
+            collectedTreasureWordsByDay[treasureDayIndex] = sanitized;
+            localStorage.setItem(treasureWordsByDayKey, JSON.stringify(collectedTreasureWordsByDay));
+          }
+        } catch (error) {
+          // Ignore storage failures.
+        }
+      }
+      collectedTreasureWords = (collectedTreasureWordsByDay[treasureDayIndex] || []).slice();
       syncTreasureSet();
+      setTreasureListView(clampTreasureDay(treasureListViewDay || treasureDayIndex));
       if (!collectedTreasureWords.length) return;
       collectedTreasureWords.forEach((text) => appendWordToCloud(text));
       enableWordListMode();
@@ -2112,9 +2288,14 @@
     };
     const saveTreasureWords = () => {
       try {
+        collectedTreasureWordsByDay[treasureDayIndex] = collectedTreasureWords.slice();
+        localStorage.setItem(treasureWordsByDayKey, JSON.stringify(collectedTreasureWordsByDay));
         localStorage.setItem(treasureWordsKey, JSON.stringify(collectedTreasureWords));
       } catch (error) {
         // Ignore storage failures.
+      }
+      if (treasureListViewDay === treasureDayIndex) {
+        renderTreasureList(treasureListViewDay);
       }
     };
     let sparklesEnabled = false;
