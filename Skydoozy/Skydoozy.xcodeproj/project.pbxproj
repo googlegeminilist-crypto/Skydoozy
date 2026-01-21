@@ -29,9 +29,26 @@
 		E2D61A902F1FF2B200BCC8D3 /* SkydoozyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SkydoozyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E2D61ADF2F205CEE00BCC8D3 /* Exceptions for "Skydoozy" folder in "Skydoozy" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			assetTagsByRelativePath = {
+				"45.4s Recording (Jan 9 @ 11_43 AM) (Add Instrumental) 1.mp3" = (New, );
+				"45.4s Recording (Jan 9 @ 11_43 AM) (Add Instrumental).mp3" = (New, );
+				"Firefly Skydoozy animation logo with matrix code and rainbow same vido without word animation 636432.mp4" = (New, );
+				"freepik-harmony.mp3" = (New, );
+				index.html = (New, );
+			};
+			target = E2D61A762F1FF2B000BCC8D3 /* Skydoozy */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2D61A792F1FF2B000BCC8D3 /* Skydoozy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E2D61ADF2F205CEE00BCC8D3 /* Exceptions for "Skydoozy" folder in "Skydoozy" target */,
+			);
 			path = Skydoozy;
 			sourceTree = "<group>";
 		};
@@ -170,6 +187,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
+				KnownAssetTags = (
+					New,
+				);
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
