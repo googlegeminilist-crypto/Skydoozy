@@ -573,6 +573,83 @@
       display: block;
     }
 
+    .story-panel.show-day-list .word-cloud {
+      display: none;
+    }
+
+    .day-select {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .day-select-title {
+      color: rgba(155, 213, 255, 0.85);
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 6px rgba(77, 166, 255, 0.45);
+    }
+
+    .day-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+      gap: 6px;
+    }
+
+    .day-btn {
+      border-radius: 10px;
+      border: 1px solid rgba(124, 255, 149, 0.35);
+      background: rgba(8, 20, 16, 0.6);
+      color: #e5fff1;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.02em;
+      padding: 6px 8px;
+      cursor: pointer;
+      font-family: inherit;
+      text-shadow: 0 0 8px rgba(124, 255, 149, 0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .day-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(124, 255, 149, 0.2);
+    }
+
+    .day-btn.is-active {
+      border-color: rgba(124, 255, 149, 0.8);
+      background: rgba(20, 40, 30, 0.75);
+      box-shadow: 0 0 12px rgba(124, 255, 149, 0.45);
+    }
+
+    .day-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 6px;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .day-list li {
+      border-radius: 10px;
+      border: 1px solid rgba(155, 213, 255, 0.45);
+      background: rgba(8, 12, 24, 0.7);
+      color: #d7ecff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 0.02em;
+      padding: 6px 8px;
+      text-align: center;
+      text-shadow: 0 0 8px rgba(77, 166, 255, 0.4);
+      box-shadow: inset 0 0 10px rgba(77, 166, 255, 0.15);
+    }
+
     .blog-panel {
       position: fixed;
       top: 130px;
@@ -965,7 +1042,7 @@
     <div class="title-hint"></div>
   </div>
   <div class="treasure-complete-banner" id="treasureCompleteBanner">You have found all of the words</div>
-  <section class="story-panel">
+  <section class="story-panel show-day-list">
     <div class="story-hint">
       <div class="matrix-hint">
         <span id="challengeStatus">When words disappear type in the red box in the matrix box</span>
@@ -973,6 +1050,19 @@
       </div>
       <div class="matrix-microcopy">If correct get 10 points. If not, lose 10 points.</div>
     </div>
+    <div class="day-select" aria-label="Word lists by day">
+      <div class="day-select-title">Days</div>
+      <div class="day-buttons">
+        <button class="day-btn" type="button" data-day="1">Day 1</button>
+        <button class="day-btn" type="button" data-day="2">Day 2</button>
+        <button class="day-btn" type="button" data-day="3">Day 3</button>
+        <button class="day-btn" type="button" data-day="4">Day 4</button>
+        <button class="day-btn" type="button" data-day="5">Day 5</button>
+        <button class="day-btn" type="button" data-day="6">Day 6</button>
+        <button class="day-btn" type="button" data-day="7">Day 7</button>
+      </div>
+    </div>
+    <ul class="day-list" id="dayList" aria-live="polite"></ul>
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
       <li style="--x: 300; --y: -250; --dx: -8; --dy: 6; --d: 16;">Basketball</li>
@@ -1781,6 +1871,39 @@
       ["Car", "Buss", "Bike", "Train", "Tram", "Ship", "Boat", "Airplane", "Scooter", "Lorry"],
       ["Badger", "Bat", "Fox", "Headgehog", "Mouse", "Tiger", "Lion", "Monkey", "Deer", "Bear"]
     ];
+    const dayButtons = document.querySelectorAll(".day-btn");
+    const dayList = document.getElementById("dayList");
+    const setActiveDayButton = (dayIndex) => {
+      dayButtons.forEach((btn) => {
+        const btnDay = Number(btn.dataset.day);
+        btn.classList.toggle("is-active", btnDay === dayIndex);
+      });
+    };
+    const renderDayList = (dayIndex) => {
+      if (!dayList) return;
+      dayList.textContent = "";
+      const list = treasureWordSets[dayIndex - 1] || [];
+      list.forEach((word) => {
+        const item = document.createElement("li");
+        item.textContent = word;
+        dayList.appendChild(item);
+      });
+    };
+    const initDayList = () => {
+      if (!dayButtons.length || !dayList) return;
+      const defaultDay = 1;
+      dayButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const day = Number(btn.dataset.day);
+          if (!Number.isFinite(day)) return;
+          renderDayList(day);
+          setActiveDayButton(day);
+        });
+      });
+      renderDayList(defaultDay);
+      setActiveDayButton(defaultDay);
+    };
+    initDayList();
     const treasureDayKey = "skydoozy-treasure-day";
     const treasureDayIndexKey = "skydoozy-treasure-day-index";
     let treasureDayIndex = 1;
