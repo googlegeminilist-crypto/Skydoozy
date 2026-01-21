@@ -1726,10 +1726,7 @@
           if (!Number.isFinite(day)) return;
           setTreasureListView(day);
           treasureDaySelected = true;
-          resetChallengeState();
-          timeLeft = challengeSeconds;
-          updateTimer();
-          startChallenge();
+          beginChallengeForSelectedDay();
         });
       });
     }
@@ -2482,6 +2479,7 @@
     let sparklesEnabled = false;
     const characterClickKey = "skydoozy-character-click";
     const controlUntilKey = "skydoozy-control-until";
+    const challengeLockKey = "skydoozy-challenge-lock-until";
     const lastMoveKey = "skydoozy-last-move";
     const debugResetKey = "skydoozy-debug-reset";
     const lockDurationMs = 24 * 60 * 60 * 1000;
@@ -2507,11 +2505,15 @@
     };
     const updateLockTimer = (nowEpoch) => {
       if (!lockTimer) return;
-      if (!controlsBlockedToday || !controlsLockedUntil) {
+      const lockUntil = Math.max(
+        controlsBlockedToday && controlsLockedUntil > nowEpoch ? controlsLockedUntil : 0,
+        challengeLockedUntil > nowEpoch ? challengeLockedUntil : 0
+      );
+      if (!lockUntil) {
         lockTimer.textContent = "Next walk: ready";
         return;
       }
-      const remaining = controlsLockedUntil - nowEpoch;
+      const remaining = lockUntil - nowEpoch;
       if (remaining <= 0) {
         lockTimer.textContent = "Next walk: ready";
         return;
@@ -2522,6 +2524,7 @@
     let controlsBlockedToday = false;
     let controlsSessionActive = false;
     let controlsLockedUntil = 0;
+    let challengeLockedUntil = 0;
     let lastMoveAt = 0;
     let lastMoveWriteAt = 0;
     let hasWalked = false;
@@ -2650,6 +2653,39 @@
       }
       updateLockTimer(Date.now());
     };
+    const loadChallengeLock = () => {
+      try {
+        const stored = Number(localStorage.getItem(challengeLockKey));
+        if (Number.isFinite(stored) && stored > Date.now()) {
+          challengeLockedUntil = stored;
+        } else {
+          localStorage.removeItem(challengeLockKey);
+        }
+      } catch (error) {
+        challengeLockedUntil = 0;
+      }
+      updateLockTimer(Date.now());
+    };
+    const updateChallengeLockState = (nowEpoch) => {
+      if (challengeLockedUntil && nowEpoch >= challengeLockedUntil) {
+        challengeLockedUntil = 0;
+        try {
+          localStorage.removeItem(challengeLockKey);
+        } catch (error) {
+          // Ignore storage failures.
+        }
+      }
+    };
+    const lockChallengeForDay = () => {
+      const lockUntil = Date.now() + lockDurationMs;
+      challengeLockedUntil = lockUntil;
+      try {
+        localStorage.setItem(challengeLockKey, `${lockUntil}`);
+      } catch (error) {
+        // Ignore storage failures.
+      }
+      updateLockTimer(Date.now());
+    };
     const markCharacterClicked = () => {
       characterClickedToday = true;
       try {
@@ -2709,9 +2745,14 @@
     })();
     loadCharacterClick();
     loadControlStatus();
+    loadChallengeLock();
     loadTreasureDay();
     loadTreasureWords();
-    setInterval(() => updateLockTimer(Date.now()), 1000);
+    setInterval(() => {
+      const nowEpoch = Date.now();
+      updateChallengeLockState(nowEpoch);
+      updateLockTimer(nowEpoch);
+    }, 1000);
     if (characterClickedToday) {
       sparklesEnabled = true;
       updateIdleHintText();
@@ -3888,8 +3929,9 @@
     let timeLeft = 0;
     let challengeSeconds = 300;
     let pauseChallengeTimer = false;
+    const isChallengeLocked = () => challengeLockedUntil > Date.now();
     const getSelectedTreasureList = () => collectedTreasureWordsByDay[treasureListViewDay] || [];
-    const canStartChallenge = () => treasureDaySelected;
+    const canStartChallenge = () => treasureDaySelected && !isChallengeLocked();
     const requestChallenge = (delayMs) => {
       if (challengeActive) return;
       clearTimeout(scheduleTimeout);
@@ -3965,6 +4007,19 @@
         treasureListTimer.textContent = timeLeft > 0 ? timerText : treasureTimerHint;
       }
     };
+    const beginChallengeForSelectedDay = () => {
+      resetChallengeState();
+      if (!canStartChallenge()) {
+        if (isChallengeLocked() && challengeStatus) {
+          challengeStatus.textContent = "Locked for 24 hours. Come back tomorrow.";
+        }
+        updateTimer();
+        return;
+      }
+      timeLeft = challengeSeconds;
+      updateTimer();
+      startChallenge();
+    };
     const updateRainAllowed = () => {
       rainAllowed = isFirstVisit || challengeSeconds === 300;
     };
@@ -3995,8 +4050,7 @@
           setChallengeSeconds(seconds);
           updateLevelSelection();
           if (treasureDaySelected) {
-            resetChallengeState();
-            startChallenge();
+            beginChallengeForSelectedDay();
           }
         });
       });
@@ -4004,7 +4058,8 @@
     updateRainAllowed();
     updateSmokeAllowed();
 
-    const endChallenge = (message) => {
+    const endChallenge = (message, options = {}) => {
+      const { restart = true } = options;
       challengeActive = false;
       clearInterval(countdownInterval);
       countdownInterval = null;
@@ -4013,16 +4068,19 @@
       if (message) challengeStatus.textContent = message;
       timeLeft = 0;
       updateTimer();
-      requestChallenge(0);
+      if (restart) {
+        requestChallenge(0);
+      }
     };
 
     const tick = () => {
       timeLeft -= 1;
       updateTimer();
       if (timeLeft <= 0) {
-        challengeStatus.textContent = "Time's up. The word reappears.";
+        challengeStatus.textContent = "Time's up. The word reappears. Locked for 24 hours.";
         setStreak(0);
-        endChallenge("");
+        endChallenge("", { restart: false });
+        lockChallengeForDay();
       }
     };
 
@@ -4082,6 +4140,11 @@
         challengeInput.value = "";
       }
     });
+
+    if (!treasureDaySelected) {
+      treasureDaySelected = true;
+      beginChallengeForSelectedDay();
+    }
 
     // Jungle-plant cursor built with Three.js
     const cursorScene = new THREE.Scene();
