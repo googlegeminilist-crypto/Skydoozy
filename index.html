@@ -1995,9 +1995,13 @@
 
     let wordBag = [];
     let lastWord = null;
+    const getChallengeCandidates = () => {
+      if (!dayList) return [];
+      return Array.from(dayList.querySelectorAll("li.day-word"));
+    };
 
     const refillBag = () => {
-      wordBag = words.slice();
+      wordBag = getChallengeCandidates();
       for (let i = wordBag.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [wordBag[i], wordBag[j]] = [wordBag[j], wordBag[i]];
@@ -2009,8 +2013,12 @@
     };
 
     const pickNextWord = () => {
-      if (words.length === 0) return null;
-      if (wordBag.length === 0) refillBag();
+      const candidates = getChallengeCandidates();
+      if (!candidates.length) return null;
+      if (wordBag.length === 0 || wordBag.some((item) => !candidates.includes(item))) {
+        refillBag();
+      }
+      if (wordBag.length === 0) return null;
       const next = wordBag.pop();
       lastWord = next;
       return next;
@@ -2036,9 +2044,11 @@
       ["Car", "Buss", "Bike", "Train", "Tram", "Ship", "Boat", "Airplane", "Scooter", "Lorry"],
       ["Badger", "Bat", "Fox", "Headgehog", "Mouse", "Tiger", "Lion", "Monkey", "Deer", "Bear"]
     ];
+    const normalizeDayWord = (text) => (text || "").trim().toLowerCase();
     const dayButtons = document.querySelectorAll(".day-btn");
     const dayList = document.getElementById("dayList");
     let activeDayIndex = 1;
+    let hiddenChallengeWord = "";
     const setActiveDayButton = (dayIndex) => {
       dayButtons.forEach((btn) => {
         const btnDay = Number(btn.dataset.day);
@@ -2082,6 +2092,11 @@
       list.forEach((word) => {
         const item = document.createElement("li");
         item.textContent = word;
+        item.classList.add("day-word");
+        item.dataset.word = normalizeDayWord(word);
+        if (item.dataset.word && item.dataset.word === hiddenChallengeWord) {
+          item.style.visibility = "hidden";
+        }
         dayList.appendChild(item);
       });
       if (isLocked) {
@@ -3854,10 +3869,27 @@
     let pauseChallengeTimer = false;
     let hintRevealTimeout = 0;
     let hintedWord = null;
+    const syncHiddenChallengeWord = () => {
+      const candidates = getChallengeCandidates();
+      if (hiddenChallengeWord && !candidates.some((item) => item.dataset.word === hiddenChallengeWord)) {
+        hiddenChallengeWord = "";
+        activeWord = null;
+        return candidates;
+      }
+      if (hiddenChallengeWord && (!activeWord || normalizeDayWord(activeWord.textContent) !== hiddenChallengeWord)) {
+        const match = candidates.find((item) => item.dataset.word === hiddenChallengeWord);
+        if (match) {
+          activeWord = match;
+          activeWord.style.visibility = "hidden";
+        }
+      }
+      return candidates;
+    };
     const updateHintButtonVisibility = () => {
       if (!matrixHintBtn) return;
-      const wordHidden = Boolean(activeWord && activeWord.style.visibility === "hidden");
-      const hasWords = words.length > 0;
+      const candidates = syncHiddenChallengeWord();
+      const wordHidden = Boolean(hiddenChallengeWord);
+      const hasWords = candidates.length > 0;
       const hasTimer = Boolean(countdownInterval);
       const hasList = getCollectedWordsForDay(activeDayIndex).length > 0;
       const shouldShow = challengeActive && timeLeft > 0 && wordHidden && hasWords && hasTimer && hasList;
@@ -3916,6 +3948,10 @@
     updateRainAllowed();
     updateSmokeAllowed();
 
+    const scheduleNextChallenge = (delayMs = 500) => {
+      clearTimeout(scheduleTimeout);
+      scheduleTimeout = setTimeout(startChallenge, delayMs);
+    };
     const endChallenge = (message) => {
       challengeActive = false;
       clearInterval(countdownInterval);
@@ -3926,16 +3962,19 @@
         hintRevealTimeout = 0;
       }
       hintedWord = null;
+      hiddenChallengeWord = "";
       updateHintButtonVisibility();
       if (activeWord) {
-        randomizeWordPosition(activeWord);
+        if (wordCloud && wordCloud.contains(activeWord)) {
+          randomizeWordPosition(activeWord);
+        }
         activeWord.style.visibility = "visible";
         activeWord = null;
       }
       if (message) challengeStatus.textContent = message;
       timeLeft = 0;
       updateTimer();
-      scheduleTimeout = setTimeout(startChallenge, 9000 + Math.random() * 4000);
+      scheduleNextChallenge(600);
     };
 
     const tick = () => {
@@ -3951,7 +3990,11 @@
     };
 
     const startChallenge = () => {
-      if (challengeActive || words.length === 0) return;
+      if (challengeActive) return;
+      if (getChallengeCandidates().length === 0) {
+        scheduleNextChallenge(2000);
+        return;
+      }
       clearTimeout(scheduleTimeout);
       challengeActive = true;
       challengeStatus.textContent = "A word vanished! Type it in the red box.";
@@ -3960,6 +4003,7 @@
         challengeActive = false;
         return;
       }
+      hiddenChallengeWord = normalizeDayWord(activeWord.textContent);
       activeWord.style.visibility = "hidden";
       timeLeft = challengeSeconds;
       updateTimer();
@@ -3970,9 +4014,11 @@
     };
 
     const submitGuess = () => {
-      if (!challengeActive || !activeWord) return;
+      if (!challengeActive) return;
+      syncHiddenChallengeWord();
+      if (!activeWord && !hiddenChallengeWord) return;
       const guess = challengeInput.value.trim().toLowerCase();
-      const target = activeWord.textContent.trim().toLowerCase();
+      const target = hiddenChallengeWord || normalizeDayWord(activeWord ? activeWord.textContent : "");
       if (guess === target) {
         challengeStatus.textContent = "Correct!";
         setScore(score + 10);
@@ -4003,11 +4049,14 @@
         if (hintRevealTimeout) {
           clearTimeout(hintRevealTimeout);
         }
+        const targetWord = hiddenChallengeWord || normalizeDayWord(activeWord.textContent);
         hintedWord = activeWord;
+        hiddenChallengeWord = "";
         activeWord.style.visibility = "visible";
         updateHintButtonVisibility();
         hintRevealTimeout = setTimeout(() => {
           if (challengeActive && activeWord && activeWord === hintedWord) {
+            hiddenChallengeWord = targetWord;
             activeWord.style.visibility = "hidden";
             updateHintButtonVisibility();
           }
@@ -4017,7 +4066,7 @@
       });
     }
 
-    scheduleTimeout = setTimeout(startChallenge, 9000);
+    scheduleNextChallenge(1000);
 
     // Jungle-plant cursor built with Three.js
     const cursorScene = new THREE.Scene();
