@@ -3854,16 +3854,13 @@
     let pauseChallengeTimer = false;
     let hintRevealTimeout = 0;
     let hintedWord = null;
-    const isUserTryingToSpell = () => {
-      if (!challengeInput) return false;
-      const hasText = challengeInput.value.trim().length > 0;
-      const hasFocus = document.activeElement === challengeInput;
-      return hasText || hasFocus;
-    };
     const updateHintButtonVisibility = () => {
       if (!matrixHintBtn) return;
       const wordHidden = Boolean(activeWord && activeWord.style.visibility === "hidden");
-      const shouldShow = challengeActive && wordHidden && isUserTryingToSpell();
+      const hasWords = words.length > 0;
+      const hasTimer = Boolean(countdownInterval);
+      const hasList = getCollectedWordsForDay(activeDayIndex).length > 0;
+      const shouldShow = challengeActive && timeLeft > 0 && wordHidden && hasWords && hasTimer && hasList;
       matrixHintBtn.classList.toggle("is-visible", shouldShow);
     };
     const isFirstVisit = (() => {
@@ -3945,6 +3942,7 @@
       if (pauseChallengeTimer) return;
       timeLeft -= 1;
       updateTimer();
+      updateHintButtonVisibility();
       if (timeLeft <= 0) {
         challengeStatus.textContent = "Time's up. The word reappears.";
         setStreak(0);
@@ -4014,7 +4012,7 @@
             updateHintButtonVisibility();
           }
           hintedWord = null;
-        }, 5000);
+        }, 20000);
         challengeInput.focus();
       });
     }
@@ -6933,14 +6931,15 @@
           entry.glow.rotation.y += delta * 0.05 * spin;
         });
       }
+      const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
+      const walkModeActive = playerMoving || (hasWalked && !inHouse);
       if (controlsBlockedToday) {
         updateTitleHintText(hintLockedText);
-      } else if (playerMoving) {
+      } else if (walkModeActive) {
         updateTitleHintText(hintWalkingText);
       } else {
         updateIdleHintText();
       }
-      const inHouse = playerState.group ? isInsideHouse(playerState.group.position) : false;
       updateHouseLabel(inHouse, playerMoving);
       updateBipedLabel();
       if (playerState.group) {
@@ -6981,9 +6980,9 @@
       pauseChallengeTimer = challengeActive && playerMoving && sparklesEnabled;
       updateGroundSparkles(t, delta);
       if (titleStack) {
-        titleStack.classList.toggle("is-walking", playerMoving);
+        titleStack.classList.toggle("is-walking", walkModeActive);
       }
-      document.body.classList.toggle("is-walking", playerMoving);
+      document.body.classList.toggle("is-walking", walkModeActive);
       updateRain(t, delta);
       updateSmoke(t, delta);
       updateBipedSparkles(delta);
