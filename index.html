@@ -139,9 +139,10 @@
       pointer-events: none;
       z-index: 7;
       white-space: nowrap;
-      position: absolute;
-      top: -50px;
-      right: -20px;
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -100%);
     }
 
     .house-label.is-visible {
@@ -684,6 +685,32 @@
       color: rgba(215, 236, 255, 0.7);
     }
 
+    .day-hint-btn {
+      align-self: flex-start;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 166, 255, 0.7);
+      background: rgba(8, 14, 26, 0.85);
+      color: #8bd5ff;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 6px 10px;
+      text-shadow: 0 0 10px rgba(79, 166, 255, 0.8);
+      box-shadow: 0 0 12px rgba(79, 166, 255, 0.35);
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .day-hint-btn.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
     .blog-panel {
       position: fixed;
       top: 130px;
@@ -1032,8 +1059,8 @@
 </script>
 <body class="intro-open">
   <div class="app-note">
-    <a href="https://apps.apple.com/dk/app/skybammy/id6755389661" target="_blank" rel="noopener noreferrer">
-      Download Skybammy App On Appl Store for more Fun Games: https://apps.apple.com/dk/app/skybammy/id6755389661
+    <a href="https://apps.apple.com/us/app/skybammy/id6755389661" target="_blank" rel="noopener noreferrer">
+      Download Skybammy App On Appl Store for more Fun Games: https://apps.apple.com/us/app/skybammy/id6755389661
     </a>
   </div>
   <div class="streak-banner">Streak <span id="streakValue">Zero</span></div>
@@ -1058,6 +1085,7 @@
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
   <canvas id="fireworks"></canvas>
+  <div class="house-label" id="houseLabel">Click me</div>
   <div class="biped-label" id="bipedLabel">My name is Poppy</div>
   <div class="player-bubble" id="playerBubble">Collect the glowing treasures</div>
   <div class="treasure-bubble" id="treasureBubble1">Collect me</div>
@@ -1075,7 +1103,7 @@
       </div>
     </div>
     <div class="title-light" aria-hidden="true"></div>
-    <h1><div class="house-label" id="houseLabel">Click me</div>Skydoozy</h1>
+    <h1>Skydoozy</h1>
     <div class="title-hint"></div>
   </div>
   <div class="treasure-complete-banner" id="treasureCompleteBanner">You have found all of the words</div>
@@ -1099,6 +1127,7 @@
         <button class="day-btn" type="button" data-day="7">Day 7</button>
       </div>
     </div>
+    <button class="day-hint-btn" id="matrixHintBtn" type="button">Click me hint!</button>
     <ul class="day-list" id="dayList" aria-live="polite"></ul>
     <ul class="word-cloud">
       <li style="--x: -300; --y: -260; --dx: 6; --dy: 8; --d: 14;">Tennis</li>
@@ -1176,7 +1205,7 @@
     const poppyLabelDefaultText = "My name is Poppy";
     const poppyLabelNearText = "Push space bar near me to hear voice";
     const treasureCompleteBanner = document.getElementById("treasureCompleteBanner");
-    const houseLabelClickedText = "Now use the directional buttons to move around";
+    const houseLabelClickedText = "Click me";
     const playerBubbleText = "Collect the glowing treasures";
     const treasureBubbleText = "Collect me";
     const debugOverrideKey = "skydoozy-debug";
@@ -1945,7 +1974,9 @@
       if (!dayList) return;
       const nowEpoch = Date.now();
       dayList.textContent = "";
-      if (isTreasureDayLocked(dayIndex, nowEpoch)) {
+      const isLocked = isTreasureDayLocked(dayIndex, nowEpoch);
+      const list = getCollectedWordsForDay(dayIndex);
+      if (!list.length && isLocked) {
         const item = document.createElement("li");
         if (dayIndex === treasureDayIndex && treasureDayUnlockAt > nowEpoch) {
           const remaining = Math.max(0, treasureDayUnlockAt - nowEpoch);
@@ -1957,7 +1988,6 @@
         dayList.appendChild(item);
         return;
       }
-      const list = getCollectedWordsForDay(dayIndex);
       if (!list.length) {
         const item = document.createElement("li");
         item.textContent = "Collect words to fill this list.";
@@ -1970,6 +2000,17 @@
         item.textContent = word;
         dayList.appendChild(item);
       });
+      if (isLocked) {
+        const item = document.createElement("li");
+        if (dayIndex === treasureDayIndex && treasureDayUnlockAt > nowEpoch) {
+          const remaining = Math.max(0, treasureDayUnlockAt - nowEpoch);
+          item.textContent = `Locked for ${formatRemaining(remaining)}`;
+        } else {
+          item.textContent = "Locked";
+        }
+        item.classList.add("is-locked");
+        dayList.appendChild(item);
+      }
     };
     const updateDayButtons = (nowEpoch = Date.now()) => {
       dayButtons.forEach((btn) => {
@@ -2683,28 +2724,24 @@
     const houseLabelAnchor = new THREE.Vector3();
     const houseLabelScreen = new THREE.Vector3();
     let houseLabelAnchorReady = false;
-    const houseLabelYOffset = 6;
+    const houseLabelYOffset = 16;
     const setHouseLabelAnchor = (center, topY) => {
       houseLabelAnchor.set(center.x, topY + houseLabelYOffset, center.z);
       houseLabelAnchorReady = true;
     };
     const updateHouseLabel = (inHouse, playerMoving) => {
       if (!houseLabel) return;
-      if (!houseLabelAnchorReady || walkUnlocked || playerMoving || inHouse) {
+      if (!houseLabelAnchorReady) {
         houseLabel.classList.remove("is-visible");
         return;
       }
-      if (!titleHeading) {
+      houseLabelScreen.copy(houseLabelAnchor).project(camera);
+      if (houseLabelScreen.z < -1 || houseLabelScreen.z > 1) {
         houseLabel.classList.remove("is-visible");
         return;
       }
-      const rect = titleHeading.getBoundingClientRect();
-      if (!rect.width || !rect.height) {
-        houseLabel.classList.remove("is-visible");
-        return;
-      }
-      const x = rect.right;
-      const y = rect.top;
+      const x = (houseLabelScreen.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-houseLabelScreen.y * 0.5 + 0.5) * window.innerHeight;
       houseLabel.style.left = `${x}px`;
       houseLabel.style.top = `${y}px`;
       houseLabel.classList.add("is-visible");
@@ -3665,6 +3702,7 @@
 
     // Matrix typing overlay in blood-red style
     const matrixInput = document.getElementById("matrixInput");
+    const matrixHintBtn = document.getElementById("matrixHintBtn");
 
     // Disappearing-word spelling challenge (typed inside matrix input)
     const challengeInput = matrixInput;
@@ -3678,6 +3716,20 @@
     let timeLeft = 0;
     let challengeSeconds = 50;
     let pauseChallengeTimer = false;
+    let hintRevealTimeout = 0;
+    let hintedWord = null;
+    const isUserTryingToSpell = () => {
+      if (!challengeInput) return false;
+      const hasText = challengeInput.value.trim().length > 0;
+      const hasFocus = document.activeElement === challengeInput;
+      return hasText || hasFocus;
+    };
+    const updateHintButtonVisibility = () => {
+      if (!matrixHintBtn) return;
+      const wordHidden = Boolean(activeWord && activeWord.style.visibility === "hidden");
+      const shouldShow = challengeActive && wordHidden && isUserTryingToSpell();
+      matrixHintBtn.classList.toggle("is-visible", shouldShow);
+    };
     const isFirstVisit = (() => {
       const key = "skydoozy-visited";
       try {
@@ -3736,6 +3788,12 @@
       clearInterval(countdownInterval);
       countdownInterval = null;
       clearTimeout(scheduleTimeout);
+      if (hintRevealTimeout) {
+        clearTimeout(hintRevealTimeout);
+        hintRevealTimeout = 0;
+      }
+      hintedWord = null;
+      updateHintButtonVisibility();
       if (activeWord) {
         randomizeWordPosition(activeWord);
         activeWord.style.visibility = "visible";
@@ -3773,6 +3831,7 @@
       updateTimer();
       challengeInput.value = "";
       challengeInput.focus();
+      updateHintButtonVisibility();
       countdownInterval = setInterval(tick, 1000);
     };
 
@@ -3797,8 +3856,32 @@
         event.preventDefault();
         submitGuess();
         challengeInput.value = "";
+        updateHintButtonVisibility();
       }
     });
+    challengeInput.addEventListener("input", updateHintButtonVisibility);
+    challengeInput.addEventListener("focus", updateHintButtonVisibility);
+    challengeInput.addEventListener("blur", updateHintButtonVisibility);
+
+    if (matrixHintBtn) {
+      matrixHintBtn.addEventListener("click", () => {
+        if (!challengeActive || !activeWord) return;
+        if (hintRevealTimeout) {
+          clearTimeout(hintRevealTimeout);
+        }
+        hintedWord = activeWord;
+        activeWord.style.visibility = "visible";
+        updateHintButtonVisibility();
+        hintRevealTimeout = setTimeout(() => {
+          if (challengeActive && activeWord && activeWord === hintedWord) {
+            activeWord.style.visibility = "hidden";
+            updateHintButtonVisibility();
+          }
+          hintedWord = null;
+        }, 5000);
+        challengeInput.focus();
+      });
+    }
 
     scheduleTimeout = setTimeout(startChallenge, 9000);
 
