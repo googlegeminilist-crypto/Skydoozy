@@ -240,6 +240,40 @@
       opacity: 1;
     }
 
+    .collect-bubble {
+      position: fixed;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -140%);
+      padding: 4px 10px;
+      border-radius: 14px;
+      background: rgba(12, 16, 24, 0.85);
+      border: 1px solid rgba(124, 255, 149, 0.8);
+      color: #eafff5;
+      font-size: clamp(0.7rem, 2vw, 0.9rem);
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 8px rgba(124, 255, 149, 0.65);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+      z-index: 8;
+      white-space: nowrap;
+    }
+
+    .collect-bubble::after {
+      content: "";
+      position: absolute;
+      left: 18px;
+      bottom: -7px;
+      border-width: 7px 7px 0 7px;
+      border-style: solid;
+      border-color: rgba(12, 16, 24, 0.85) transparent transparent transparent;
+    }
+
+    .collect-bubble.is-visible {
+      opacity: 1;
+    }
+
     .title-stack {
       position: relative;
       display: inline-flex;
@@ -1087,6 +1121,7 @@
   <canvas id="fireworks"></canvas>
   <div class="house-label" id="houseLabel">Click me</div>
   <div class="biped-label" id="bipedLabel">My name is Poppy</div>
+  <div class="collect-bubble" id="collectBubble"></div>
   <div class="player-bubble" id="playerBubble">Collect the glowing treasures</div>
   <div class="treasure-bubble" id="treasureBubble1">Collect me</div>
   <div class="treasure-bubble" id="treasureBubble2">Collect me</div>
@@ -1196,6 +1231,7 @@
     const lockTimer = document.getElementById("lockTimer");
     const houseLabel = document.getElementById("houseLabel");
     const bipedLabel = document.getElementById("bipedLabel");
+    const collectBubble = document.getElementById("collectBubble");
     const playerBubble = document.getElementById("playerBubble");
     const treasureBubbles = [
       document.getElementById("treasureBubble1"),
@@ -2752,6 +2788,11 @@
     const playerBubbleWorld = new THREE.Vector3();
     const playerBubbleScreen = new THREE.Vector3();
     const playerBubbleOffset = 18;
+    let collectBubbleActive = false;
+    let collectBubbleTimer = 0;
+    const collectBubbleWorld = new THREE.Vector3();
+    const collectBubbleScreen = new THREE.Vector3();
+    const collectBubbleOffset = 10;
     const hidePlayerBubble = () => {
       if (!playerBubble) return;
       playerBubbleActive = false;
@@ -2760,6 +2801,27 @@
         window.clearTimeout(playerBubbleTimer);
         playerBubbleTimer = 0;
       }
+    };
+    const hideCollectBubble = () => {
+      if (!collectBubble) return;
+      collectBubbleActive = false;
+      collectBubble.classList.remove("is-visible");
+      if (collectBubbleTimer) {
+        window.clearTimeout(collectBubbleTimer);
+        collectBubbleTimer = 0;
+      }
+    };
+    const showCollectBubble = (text) => {
+      if (!collectBubble || !text) return;
+      collectBubble.textContent = text;
+      collectBubbleActive = true;
+      updateCollectBubble();
+      if (collectBubbleTimer) {
+        window.clearTimeout(collectBubbleTimer);
+      }
+      collectBubbleTimer = window.setTimeout(() => {
+        hideCollectBubble();
+      }, 2400);
     };
     const showPlayerBubble = () => {
       if (!playerBubble || playerBubbleShown) return;
@@ -2792,6 +2854,29 @@
       playerBubble.style.left = `${x}px`;
       playerBubble.style.top = `${y}px`;
       playerBubble.classList.add("is-visible");
+    };
+    const updateCollectBubble = () => {
+      if (!collectBubble || !collectBubbleActive) return;
+      if (!playerState.group || !playerState.group.visible) {
+        collectBubble.classList.remove("is-visible");
+        return;
+      }
+      if (playerState.parts && playerState.parts.head) {
+        playerState.parts.head.getWorldPosition(collectBubbleWorld);
+      } else {
+        playerState.group.getWorldPosition(collectBubbleWorld);
+      }
+      collectBubbleWorld.y += collectBubbleOffset;
+      collectBubbleScreen.copy(collectBubbleWorld).project(camera);
+      if (collectBubbleScreen.z < -1 || collectBubbleScreen.z > 1) {
+        collectBubble.classList.remove("is-visible");
+        return;
+      }
+      const x = (collectBubbleScreen.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-collectBubbleScreen.y * 0.5 + 0.5) * window.innerHeight;
+      collectBubble.style.left = `${x}px`;
+      collectBubble.style.top = `${y}px`;
+      collectBubble.classList.add("is-visible");
     };
     let treasureBubbleShown = false;
     let treasureBubbleActive = false;
@@ -3152,7 +3237,10 @@
           sparkleColors[i3 + 2] = 0;
           if (!collectedThisFrame) {
             if (playerCollect) {
-              collectTreasureWord();
+              const collectedWord = collectTreasureWord();
+              if (collectedWord) {
+                showCollectBubble(collectedWord);
+              }
             } else if (bipedCollect) {
               collectFruitWord();
               bipedState.group.getWorldPosition(bipedSparkleWorld);
@@ -6815,6 +6903,7 @@
         showTreasureBubbles();
       }
       updatePlayerBubble();
+      updateCollectBubble();
       updateTreasureBubbles();
       if (houseDoorPivot) {
         const doorTarget = inHouse ? houseDoorClosedAngle : houseDoorOpenAngle;
