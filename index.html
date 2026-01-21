@@ -623,6 +623,25 @@
       box-shadow: 0 0 12px rgba(124, 255, 149, 0.45);
     }
 
+    .day-btn.is-locked {
+      border-color: rgba(124, 255, 149, 0.2);
+      color: rgba(229, 255, 241, 0.45);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .day-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .day-btn.is-locked:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
     .day-list {
       list-style: none;
       margin: 0;
@@ -648,6 +667,12 @@
       text-align: center;
       text-shadow: 0 0 8px rgba(77, 166, 255, 0.4);
       box-shadow: inset 0 0 10px rgba(77, 166, 255, 0.15);
+    }
+
+    .day-list li.is-empty,
+    .day-list li.is-locked {
+      border-style: dashed;
+      color: rgba(215, 236, 255, 0.7);
     }
 
     .blog-panel {
@@ -1519,13 +1544,17 @@
         debugNextDay.remove();
       } else {
         debugNextDay.addEventListener("click", () => {
-          debugDayOffset += 1;
-          try {
-            localStorage.setItem(debugDayOffsetKey, `${debugDayOffset}`);
-          } catch (error) {
-            // Ignore storage failures.
+          treasureCompletedDays.add(treasureDayIndex);
+          if (treasureDayIndex < treasureWordSets.length) {
+            treasureDayIndex += 1;
           }
-          window.location.reload();
+          treasureDayUnlockAt = 0;
+          setTreasureWordsForDay(treasureDayIndex);
+          collectedTreasureWords = getCollectedWordsForDay(treasureDayIndex);
+          syncTreasureSet();
+          saveTreasureProgress();
+          loadTreasureWords();
+          refreshDayListUI();
         });
       }
     }
@@ -1862,6 +1891,17 @@
       return next;
     };
 
+    const lockDurationMs = 24 * 60 * 60 * 1000;
+    const formatRemaining = (ms) => {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) {
+        return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+      }
+      return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+    };
     const treasureWordSets = [
       ["Shop", "Church", "House", "School", "Hospital", "Hotel", "Pub", "Castle", "Garage", "Cinema"],
       ["Green", "Orange", "Yellow", "Blue", "Purple", "Red", "Brown", "White", "Black", "Pink"],
@@ -1873,46 +1913,106 @@
     ];
     const dayButtons = document.querySelectorAll(".day-btn");
     const dayList = document.getElementById("dayList");
+    let activeDayIndex = 1;
     const setActiveDayButton = (dayIndex) => {
       dayButtons.forEach((btn) => {
         const btnDay = Number(btn.dataset.day);
         btn.classList.toggle("is-active", btnDay === dayIndex);
       });
     };
+    const getCollectedWordsForDay = (dayIndex) => {
+      const stored = treasureCollectedByDay[String(dayIndex)];
+      return Array.isArray(stored) ? stored.slice() : [];
+    };
+    const isTreasureDayLocked = (dayIndex, nowEpoch = Date.now()) => {
+      if (dayIndex < treasureDayIndex) return false;
+      if (dayIndex > treasureDayIndex) return true;
+      return treasureDayUnlockAt > 0 && nowEpoch < treasureDayUnlockAt;
+    };
     const renderDayList = (dayIndex) => {
       if (!dayList) return;
+      const nowEpoch = Date.now();
       dayList.textContent = "";
-      const list = treasureWordSets[dayIndex - 1] || [];
+      if (isTreasureDayLocked(dayIndex, nowEpoch)) {
+        const item = document.createElement("li");
+        if (dayIndex === treasureDayIndex && treasureDayUnlockAt > nowEpoch) {
+          const remaining = Math.max(0, treasureDayUnlockAt - nowEpoch);
+          item.textContent = `Locked for ${formatRemaining(remaining)}`;
+        } else {
+          item.textContent = "Locked";
+        }
+        item.classList.add("is-locked");
+        dayList.appendChild(item);
+        return;
+      }
+      const list = getCollectedWordsForDay(dayIndex);
+      if (!list.length) {
+        const item = document.createElement("li");
+        item.textContent = "Collect words to fill this list.";
+        item.classList.add("is-empty");
+        dayList.appendChild(item);
+        return;
+      }
       list.forEach((word) => {
         const item = document.createElement("li");
         item.textContent = word;
         dayList.appendChild(item);
       });
     };
+    const updateDayButtons = (nowEpoch = Date.now()) => {
+      dayButtons.forEach((btn) => {
+        const btnDay = Number(btn.dataset.day);
+        if (!Number.isFinite(btnDay)) return;
+        const locked = isTreasureDayLocked(btnDay, nowEpoch);
+        const futureDay = btnDay > treasureDayIndex;
+        btn.classList.toggle("is-locked", locked);
+        btn.disabled = futureDay;
+      });
+    };
+    const setActiveDay = (dayIndex) => {
+      const safeDay = Math.max(1, Math.min(treasureWordSets.length, dayIndex));
+      activeDayIndex = safeDay;
+      setActiveDayButton(safeDay);
+      renderDayList(safeDay);
+    };
+    const pickDefaultDay = () => {
+      for (let i = treasureWordSets.length; i >= 1; i -= 1) {
+        if (getCollectedWordsForDay(i).length) return i;
+      }
+      return Math.max(1, Math.min(treasureWordSets.length, treasureDayIndex));
+    };
     const initDayList = () => {
       if (!dayButtons.length || !dayList) return;
-      const defaultDay = 1;
       dayButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           const day = Number(btn.dataset.day);
           if (!Number.isFinite(day)) return;
-          renderDayList(day);
-          setActiveDayButton(day);
+          setActiveDay(day);
         });
       });
-      renderDayList(defaultDay);
-      setActiveDayButton(defaultDay);
+      setActiveDay(pickDefaultDay());
+      updateDayButtons();
     };
-    initDayList();
-    const treasureDayKey = "skydoozy-treasure-day";
+    const refreshDayListUI = () => {
+      if (!dayButtons.length || !dayList) return;
+      updateDayButtons();
+      renderDayList(activeDayIndex);
+    };
     const treasureDayIndexKey = "skydoozy-treasure-day-index";
+    const treasureDayUnlockKey = "skydoozy-treasure-day-unlock";
+    const treasureCollectedByDayKey = "skydoozy-treasure-collected-by-day";
+    const treasureCompletedDaysKey = "skydoozy-treasure-days-complete";
+    const treasureCompleteKey = "skydoozy-treasure-complete-day";
+    const treasureWordsKey = "skydoozy-treasure-words";
     let treasureDayIndex = 1;
+    let treasureDayUnlockAt = 0;
+    let treasureCollectedByDay = {};
+    let treasureCompletedDays = new Set();
     let treasureWords = [];
     let treasureWordBag = [];
     let lastTreasureWord = null;
     const normalizeTreasureWord = (word) => word.trim().toLowerCase();
-    const treasureCompleteKey = "skydoozy-treasure-complete";
-    let treasureCompleteShown = false;
+    let treasureCompleteShownDay = 0;
     let treasureCompleteTimeout = 0;
     const countCollectedForSet = (list) => list.reduce(
       (count, word) => count + (collectedTreasureSet.has(normalizeTreasureWord(word)) ? 1 : 0),
@@ -1921,11 +2021,11 @@
     const isTreasureSetComplete = () => (
       treasureWords.length > 0 && countCollectedForSet(treasureWords) >= treasureWords.length
     );
-    const showTreasureComplete = () => {
-      if (treasureCompleteShown) return;
-      treasureCompleteShown = true;
+    const showTreasureComplete = (dayIndex = treasureDayIndex) => {
+      if (treasureCompleteShownDay === dayIndex) return;
+      treasureCompleteShownDay = dayIndex;
       try {
-        localStorage.setItem(treasureCompleteKey, getTodayKey());
+        localStorage.setItem(treasureCompleteKey, `${dayIndex}`);
       } catch (error) {
         // Ignore storage failures.
       }
@@ -1941,7 +2041,7 @@
       triggerFireworks(5200);
     };
     const resetTreasureComplete = () => {
-      treasureCompleteShown = false;
+      treasureCompleteShownDay = 0;
       if (treasureCompleteTimeout) {
         clearTimeout(treasureCompleteTimeout);
         treasureCompleteTimeout = 0;
@@ -1962,32 +2062,115 @@
       treasureWordBag = [];
       lastTreasureWord = null;
     };
-    const loadTreasureDay = () => {
-      const todayKey = getTodayKey();
-      let isNewDay = false;
-      try {
-        const storedDay = localStorage.getItem(treasureDayKey);
-        const storedIndex = Number(localStorage.getItem(treasureDayIndexKey));
-        if (storedDay && storedDay === todayKey && Number.isFinite(storedIndex) && storedIndex > 0) {
-          treasureDayIndex = storedIndex;
-        } else {
-          isNewDay = true;
-          treasureDayIndex = Number.isFinite(storedIndex) && storedIndex > 0 ? storedIndex + 1 : 1;
-          localStorage.setItem(treasureDayKey, todayKey);
-          localStorage.setItem(treasureDayIndexKey, `${treasureDayIndex}`);
+    const sanitizeTreasureList = (list) => {
+      const unique = [];
+      const seen = new Set();
+      list.forEach((item) => {
+        if (typeof item !== "string") return;
+        const trimmed = item.trim();
+        if (!trimmed) return;
+        const normalized = normalizeTreasureWord(trimmed);
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        unique.push(trimmed);
+      });
+      return unique;
+    };
+    const rebuildTreasureCompletedDays = () => {
+      treasureCompletedDays = new Set();
+      for (let i = 1; i <= treasureWordSets.length; i += 1) {
+        const list = treasureWordSets[i - 1] || [];
+        if (!list.length) continue;
+        const collected = getCollectedWordsForDay(i);
+        if (!collected.length) continue;
+        const collectedSet = new Set(collected.map(normalizeTreasureWord));
+        const isComplete = list.every((word) => collectedSet.has(normalizeTreasureWord(word)));
+        if (isComplete) {
+          treasureCompletedDays.add(i);
         }
-        const storedComplete = localStorage.getItem(treasureCompleteKey);
-        treasureCompleteShown = storedComplete === todayKey;
-        if (!treasureCompleteShown && storedComplete) {
-          localStorage.removeItem(treasureCompleteKey);
+      }
+    };
+    const findFirstIncompleteDay = () => {
+      for (let i = 1; i <= treasureWordSets.length; i += 1) {
+        if (!treasureCompletedDays.has(i)) return i;
+      }
+      return treasureWordSets.length;
+    };
+    const saveTreasureProgress = () => {
+      try {
+        localStorage.setItem(treasureDayIndexKey, `${treasureDayIndex}`);
+        localStorage.setItem(treasureDayUnlockKey, `${treasureDayUnlockAt}`);
+        localStorage.setItem(treasureCollectedByDayKey, JSON.stringify(treasureCollectedByDay));
+        localStorage.setItem(treasureCompletedDaysKey, JSON.stringify(Array.from(treasureCompletedDays)));
+      } catch (error) {
+        // Ignore storage failures.
+      }
+    };
+    const loadTreasureDay = () => {
+      treasureDayIndex = 1;
+      treasureDayUnlockAt = 0;
+      treasureCollectedByDay = {};
+      treasureCompletedDays = new Set();
+      const nowEpoch = Date.now();
+      try {
+        const storedIndex = Number(localStorage.getItem(treasureDayIndexKey));
+        if (Number.isFinite(storedIndex) && storedIndex > 0) {
+          treasureDayIndex = storedIndex;
         }
       } catch (error) {
         treasureDayIndex = 1;
-        treasureCompleteShown = false;
       }
-      if (isNewDay) {
-        resetTreasureComplete();
+      treasureDayIndex = Math.max(1, Math.min(treasureWordSets.length, treasureDayIndex));
+      try {
+        const storedUnlock = Number(localStorage.getItem(treasureDayUnlockKey));
+        if (Number.isFinite(storedUnlock) && storedUnlock > 0) {
+          treasureDayUnlockAt = storedUnlock;
+        }
+      } catch (error) {
+        treasureDayUnlockAt = 0;
       }
+      if (treasureDayUnlockAt && nowEpoch >= treasureDayUnlockAt) {
+        treasureDayUnlockAt = 0;
+      }
+      try {
+        const storedMap = JSON.parse(localStorage.getItem(treasureCollectedByDayKey) || "{}");
+        if (storedMap && typeof storedMap === "object") {
+          Object.keys(storedMap).forEach((key) => {
+            const dayNum = Number(key);
+            if (!Number.isFinite(dayNum) || dayNum <= 0) return;
+            const list = Array.isArray(storedMap[key]) ? storedMap[key] : [];
+            const sanitized = sanitizeTreasureList(list);
+            if (sanitized.length) {
+              treasureCollectedByDay[String(dayNum)] = sanitized;
+            }
+          });
+        }
+      } catch (error) {
+        treasureCollectedByDay = {};
+      }
+      if (!Object.keys(treasureCollectedByDay).length) {
+        try {
+          const legacy = JSON.parse(localStorage.getItem(treasureWordsKey) || "[]");
+          if (Array.isArray(legacy) && legacy.length) {
+            treasureCollectedByDay["1"] = sanitizeTreasureList(legacy);
+            localStorage.removeItem(treasureWordsKey);
+          }
+        } catch (error) {
+          // Ignore migration failures.
+        }
+      }
+      rebuildTreasureCompletedDays();
+      const firstIncomplete = findFirstIncompleteDay();
+      if (treasureDayIndex < firstIncomplete) {
+        treasureDayIndex = firstIncomplete;
+      }
+      treasureDayIndex = Math.max(1, Math.min(treasureWordSets.length, treasureDayIndex));
+      const storedCompleteDay = Number(localStorage.getItem(treasureCompleteKey));
+      treasureCompleteShownDay = treasureCompletedDays.has(storedCompleteDay) ? storedCompleteDay : 0;
+      if (!treasureCompleteShownDay && storedCompleteDay) {
+        localStorage.removeItem(treasureCompleteKey);
+      }
+      saveTreasureProgress();
       setTreasureWordsForDay(treasureDayIndex);
     };
     const refillTreasureBag = () => {
@@ -2094,51 +2277,67 @@
       updatePoppySpelling(next);
       return next;
     };
+    const lockTreasureDay = (lockUntil) => {
+      if (!Number.isFinite(lockUntil) || lockUntil <= 0) return;
+      if (lockUntil > treasureDayUnlockAt) {
+        treasureDayUnlockAt = lockUntil;
+      }
+    };
+    const handleTreasureDayComplete = () => {
+      if (!isTreasureSetComplete()) return;
+      if (treasureCompletedDays.has(treasureDayIndex)) return;
+      const completedDay = treasureDayIndex;
+      treasureCompletedDays.add(completedDay);
+      showTreasureComplete(completedDay);
+      if (completedDay === 3) {
+        triggerFireworks(5200);
+      }
+      const lockUntil = (lastMoveAt > 0 ? lastMoveAt : Date.now()) + lockDurationMs;
+      lockTreasureDay(lockUntil);
+      if (treasureDayIndex < treasureWordSets.length) {
+        treasureDayIndex += 1;
+      }
+      setTreasureWordsForDay(treasureDayIndex);
+      collectedTreasureWords = getCollectedWordsForDay(treasureDayIndex);
+      syncTreasureSet();
+      saveTreasureProgress();
+      loadTreasureWords();
+      refreshDayListUI();
+    };
     const collectTreasureWord = () => {
       if (!wordCloud) return;
+      if (isTreasureDayLocked(treasureDayIndex)) return null;
       const next = pickTreasureWord();
       if (!next) {
-        showTreasureComplete();
-        return;
+        handleTreasureDayComplete();
+        return null;
       }
       const normalized = normalizeTreasureWord(next);
-      if (collectedTreasureSet.has(normalized)) return;
+      if (collectedTreasureSet.has(normalized)) return null;
       appendWordToCloud(next);
       collectedTreasureSet.add(normalized);
       collectedTreasureWords.push(next);
+      treasureCollectedByDay[String(treasureDayIndex)] = collectedTreasureWords.slice();
       updatePoppySpelling(next);
-      saveTreasureWords();
+      saveTreasureProgress();
       const treasureCompleteNow = isTreasureSetComplete();
       if (treasureCompleteNow) {
-        showTreasureComplete();
-        if (treasureDayIndex === 3) {
-          triggerFireworks(5200);
-        }
+        handleTreasureDayComplete();
       }
       enableWordListMode();
       words.forEach((item) => item.classList.add("is-collected"));
       collectedWordCount = words.length;
       wordBag = [];
       refillBag();
+      refreshDayListUI();
       return next;
     };
-    const treasureWordsKey = "skydoozy-treasure-words";
     let collectedTreasureWords = [];
     let collectedTreasureSet = new Set();
     const syncTreasureSet = () => {
       collectedTreasureSet = new Set(collectedTreasureWords.map(normalizeTreasureWord));
     };
-    const resetTreasureList = () => {
-      collectedTreasureWords = [];
-      collectedTreasureSet = new Set();
-      resetTreasureComplete();
-      treasureWordBag = [];
-      lastTreasureWord = null;
-      try {
-        localStorage.removeItem(treasureWordsKey);
-      } catch (error) {
-        // Ignore storage failures.
-      }
+    const clearTreasureWordCloud = () => {
       if (!wordCloud) return;
       while (words.length > baseWordCount) {
         const word = words.pop();
@@ -2155,18 +2354,34 @@
       refillBag();
       layoutWordCloud();
     };
+    const resetTreasureList = () => {
+      collectedTreasureWords = [];
+      collectedTreasureSet = new Set();
+      resetTreasureComplete();
+      treasureWordBag = [];
+      lastTreasureWord = null;
+      clearTreasureWordCloud();
+    };
     const resetTreasureProgress = () => {
       resetTreasureList();
       treasureDayIndex = 1;
+      treasureDayUnlockAt = 0;
+      treasureCollectedByDay = {};
+      treasureCompletedDays = new Set();
       setTreasureWordsForDay(treasureDayIndex);
-      treasureCompleteShown = false;
+      treasureCompleteShownDay = 0;
+      setActiveDay(1);
       try {
-        localStorage.removeItem(treasureDayKey);
         localStorage.removeItem(treasureDayIndexKey);
+        localStorage.removeItem(treasureDayUnlockKey);
+        localStorage.removeItem(treasureCollectedByDayKey);
+        localStorage.removeItem(treasureCompletedDaysKey);
         localStorage.removeItem(treasureCompleteKey);
+        localStorage.removeItem(treasureWordsKey);
       } catch (error) {
         // Ignore storage failures.
       }
+      refreshDayListUI();
     };
     const appendWordToCloud = (text) => {
       if (!wordCloud) return;
@@ -2179,25 +2394,8 @@
     };
     const loadTreasureWords = () => {
       if (!wordCloud) return;
-      try {
-        const stored = JSON.parse(localStorage.getItem(treasureWordsKey) || "[]");
-        if (Array.isArray(stored)) {
-          const unique = [];
-          const seen = new Set();
-          stored.forEach((item) => {
-            if (typeof item !== "string") return;
-            const trimmed = item.trim();
-            if (!trimmed) return;
-            const normalized = normalizeTreasureWord(trimmed);
-            if (seen.has(normalized)) return;
-            seen.add(normalized);
-            unique.push(trimmed);
-          });
-          collectedTreasureWords = unique;
-        }
-      } catch (error) {
-        collectedTreasureWords = [];
-      }
+      clearTreasureWordCloud();
+      collectedTreasureWords = getCollectedWordsForDay(treasureDayIndex);
       syncTreasureSet();
       if (!collectedTreasureWords.length) return;
       collectedTreasureWords.forEach((text) => appendWordToCloud(text));
@@ -2207,19 +2405,11 @@
       wordBag = [];
       refillBag();
     };
-    const saveTreasureWords = () => {
-      try {
-        localStorage.setItem(treasureWordsKey, JSON.stringify(collectedTreasureWords));
-      } catch (error) {
-        // Ignore storage failures.
-      }
-    };
     let sparklesEnabled = false;
     const characterClickKey = "skydoozy-character-click";
     const controlUntilKey = "skydoozy-control-until";
     const lastMoveKey = "skydoozy-last-move";
     const debugResetKey = "skydoozy-debug-reset";
-    const lockDurationMs = 24 * 60 * 60 * 1000;
     const getTodayKey = () => {
       const now = new Date();
       if (debugDayOffset) {
@@ -2230,17 +2420,14 @@
       const day = `${now.getDate()}`.padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
-    const formatRemaining = (ms) => {
-      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      if (hours > 0) {
-        return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
-      }
-      return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
-    };
     const updateLockTimer = (nowEpoch) => {
+      if (treasureDayUnlockAt && nowEpoch >= treasureDayUnlockAt) {
+        treasureDayUnlockAt = 0;
+        saveTreasureProgress();
+        refreshDayListUI();
+      } else if (treasureDayUnlockAt) {
+        refreshDayListUI();
+      }
       if (!lockTimer) return;
       if (!controlsBlockedToday || !controlsLockedUntil) {
         lockTimer.textContent = "Next walk: ready";
@@ -2357,6 +2544,8 @@
             controlsBlockedToday = true;
             controlsSessionActive = true;
             controlsLockedUntil = storedUntil;
+            lockTreasureDay(storedUntil);
+            saveTreasureProgress();
           } else {
             localStorage.removeItem(controlUntilKey);
           }
@@ -2413,6 +2602,9 @@
       controlsBlockedToday = true;
       controlsSessionActive = true;
       controlsLockedUntil = lockUntil;
+      lockTreasureDay(lockUntil);
+      saveTreasureProgress();
+      refreshDayListUI();
       try {
         localStorage.setItem(controlUntilKey, `${lockUntil}`);
       } catch (error) {
@@ -2423,9 +2615,11 @@
       updateLockTimer(Date.now());
     };
     loadCharacterClick();
-    loadControlStatus();
     loadTreasureDay();
     loadTreasureWords();
+    initDayList();
+    loadControlStatus();
+    refreshDayListUI();
     setInterval(() => updateLockTimer(Date.now()), 1000);
     if (characterClickedToday) {
       sparklesEnabled = true;
