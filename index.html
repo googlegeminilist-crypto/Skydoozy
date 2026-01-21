@@ -2828,9 +2828,9 @@
       houseLabelAnchor.set(center.x, topY + houseLabelYOffset, center.z);
       houseLabelAnchorReady = true;
     };
-    const updateHouseLabel = (inHouse, playerMoving) => {
+    const updateHouseLabel = (inHouse, walkModeActive) => {
       if (!houseLabel) return;
-      if (!houseLabelAnchorReady) {
+      if (!houseLabelAnchorReady || walkModeActive) {
         houseLabel.classList.remove("is-visible");
         return;
       }
@@ -6989,13 +6989,12 @@
       } else {
         updateIdleHintText();
       }
-      updateHouseLabel(inHouse, playerMoving);
+      updateHouseLabel(inHouse, walkModeActive);
       updateBipedLabel();
       if (playerState.group) {
         playerState.group.visible = !inHouse;
       }
-      if (playerState.group && !inHouse && !playerBubbleShown) {
-        showPlayerBubble();
+      if (playerState.group && !inHouse) {
         showTreasureBubbles();
       }
       updatePlayerBubble();
