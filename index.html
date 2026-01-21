@@ -89,6 +89,31 @@
       opacity: 1;
     }
 
+    .intro-skip {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      border: 1px solid rgba(255, 59, 59, 0.7);
+      background: rgba(12, 16, 24, 0.75);
+      color: #ff3b3b;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      padding: 10px 18px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(255, 59, 59, 0.55);
+      cursor: pointer;
+      z-index: 13;
+    }
+
+    .intro-skip:focus-visible {
+      outline: 2px solid rgba(255, 59, 59, 0.9);
+      outline-offset: 2px;
+    }
+
     h1 {
       font-size: clamp(2.5rem, 6vw, 4.5rem);
       letter-spacing: 0.08em;
@@ -1115,6 +1140,7 @@
       data-intro-sequence="compressed/video/Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4|compressed/video/Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4">
       <source src="compressed/video/Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4" type="video/mp4" />
     </video>
+    <button class="intro-skip" id="introSkip" type="button">Skip</button>
   </div>
   <canvas id="cursor-canvas"></canvas>
   <canvas id="bg"></canvas>
@@ -1221,6 +1247,7 @@
     const introOverlay = document.getElementById("introOverlay");
     const introVideo = document.getElementById("introVideo");
     const introAudio = document.getElementById("introAudio");
+    const introSkip = document.getElementById("introSkip");
     const poppyAudio = document.getElementById("poppyAudio");
     const poppyInput = document.getElementById("poppyInput");
     const poppyAudioFile = "compressed/audio/ElevenLabs_2026-01-14T17_28_18_Alice - Clear, Engaging Educator_pre_sp100_s50_sb75_v3.mp3";
@@ -1301,6 +1328,24 @@
       showIntro();
       let introVideoDone = false;
       let introAudioDone = !introAudio;
+      const stopIntroMedia = () => {
+        if (introVideo) {
+          try {
+            introVideo.pause();
+          } catch (error) {}
+        }
+        if (introAudio) {
+          try {
+            introAudio.pause();
+          } catch (error) {}
+        }
+      };
+      const skipIntro = () => {
+        introVideoDone = true;
+        introAudioDone = true;
+        stopIntroMedia();
+        hideIntro();
+      };
       const setIntroReady = (ready) => {
         introVideo.classList.toggle("is-ready", ready);
       };
@@ -1367,6 +1412,9 @@
       introVideo.addEventListener("ended", advanceIntroVideo);
       introVideo.addEventListener("error", advanceIntroVideo);
       playIntroVideo();
+      if (introSkip) {
+        introSkip.addEventListener("click", skipIntro);
+      }
     }
     let score = 0;
     let streak = 0;
