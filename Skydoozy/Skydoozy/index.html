@@ -617,7 +617,8 @@
     }
 
     #challengeTimer {
-      display: none;
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
     }
 
     .story-hint {
@@ -4120,9 +4121,6 @@
       if (Number.isFinite(secondsOverride)) {
         levelSelected = true;
         setChallengeSeconds(secondsOverride);
-        updateLevelSelection();
-      } else if (!levelSelected) {
-        levelSelected = true;
         updateLevelSelection();
       }
       if (Number.isFinite(dayOverride)) {
