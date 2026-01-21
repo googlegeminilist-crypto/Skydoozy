@@ -2750,6 +2750,8 @@
     const treasureBubbleTargets = [];
     const treasureBubbleWorld = new THREE.Vector3();
     const treasureBubbleScreen = new THREE.Vector3();
+    const treasureBubblePickWorld = new THREE.Vector3();
+    const treasureBubblePickScreen = new THREE.Vector3();
     const treasureBubbleOffset = 10;
     const hideTreasureBubbles = () => {
       treasureBubbleActive = false;
@@ -2762,15 +2764,35 @@
     };
     const assignTreasureBubbleTargets = () => {
       treasureBubbleTargets.length = 0;
-      if (!treasureBubbles.length || !extraGlowOrbs.length) return;
-      const shuffled = extraGlowOrbs.slice();
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      if (!treasureBubbles.length || !sparkleActive || !sparkleBasePositions) return;
+      const candidates = [];
+      for (let i = 0; i < sparkleCount; i++) {
+        if (!sparkleActive[i]) continue;
+        const i3 = i * 3;
+        treasureBubblePickWorld.set(
+          sparkleBasePositions[i3],
+          sparkleBasePositions[i3 + 1],
+          sparkleBasePositions[i3 + 2]
+        );
+        treasureBubblePickScreen.copy(treasureBubblePickWorld).project(camera);
+        if (treasureBubblePickScreen.z < -1 || treasureBubblePickScreen.z > 1) continue;
+        if (Math.abs(treasureBubblePickScreen.x) > 0.95 || Math.abs(treasureBubblePickScreen.y) > 0.95) continue;
+        candidates.push(i);
       }
-      const count = Math.min(treasureBubbles.length, shuffled.length);
+      if (!candidates.length) {
+        for (let i = 0; i < sparkleCount; i++) {
+          if (sparkleActive[i]) {
+            candidates.push(i);
+          }
+        }
+      }
+      for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      }
+      const count = Math.min(treasureBubbles.length, candidates.length);
       for (let i = 0; i < count; i++) {
-        treasureBubbleTargets.push({ bubble: treasureBubbles[i], source: shuffled[i] });
+        treasureBubbleTargets.push({ bubble: treasureBubbles[i], sparkleIndex: candidates[i] });
       }
       for (let i = count; i < treasureBubbles.length; i++) {
         treasureBubbles[i].classList.remove("is-visible");
@@ -2795,12 +2817,17 @@
     const updateTreasureBubbles = () => {
       if (!treasureBubbleActive) return;
       treasureBubbleTargets.forEach((entry) => {
-        if (!entry.source || !entry.source.group) {
+        const sparkleIndex = entry.sparkleIndex;
+        if (!Number.isFinite(sparkleIndex) || !sparkleActive[sparkleIndex]) {
           entry.bubble.classList.remove("is-visible");
           return;
         }
-        entry.source.group.getWorldPosition(treasureBubbleWorld);
-        treasureBubbleWorld.y += treasureBubbleOffset;
+        const i3 = sparkleIndex * 3;
+        treasureBubbleWorld.set(
+          sparkleBasePositions[i3],
+          sparkleBasePositions[i3 + 1] + treasureBubbleOffset,
+          sparkleBasePositions[i3 + 2]
+        );
         treasureBubbleScreen.copy(treasureBubbleWorld).project(camera);
         if (treasureBubbleScreen.z < -1 || treasureBubbleScreen.z > 1) {
           entry.bubble.classList.remove("is-visible");
