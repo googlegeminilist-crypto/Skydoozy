@@ -1,0 +1,20 @@
+# Large binary assets (store in R2 instead of git)
+uploads/
+compressed/
+compression-artifacts/
+Meshy_AI_biped/
+*.glb
+*.gltf
+*.mp3
+*.mp4
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.flac
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif

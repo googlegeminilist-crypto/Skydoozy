@@ -1131,14 +1131,14 @@
     <button class="audio-btn debug-only" id="debugNextDay" type="button" title="Localhost only">Next Day</button>
     <canvas class="audio-wave" id="audioWave" width="160" height="36" aria-hidden="true"></canvas>
   </div>
-  <audio id="bgAudio" src="compressed/audio/45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
-  <audio id="voiceAudio" src="compressed/audio/ElevenLabs_2026-01-11T02_53_58_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
-  <audio id="introAudio" src="compressed/audio/ElevenLabs_2026-01-13T19_39_49_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto" hidden></audio>
-  <audio id="poppyAudio" src="compressed/audio/ElevenLabs_2026-01-14T17_28_18_Alice%20-%20Clear%2C%20Engaging%20Educator_pre_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
+  <audio id="bgAudio" src="https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29.mp3" preload="auto" loop></audio>
+  <audio id="voiceAudio" src="https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/ElevenLabs_2026-01-11T02_53_58_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
+  <audio id="introAudio" src="https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/ElevenLabs_2026-01-13T19_39_49_Grandpa%20Spuds%20Oxley_pvc_sp100_s50_sb75_v3.mp3" preload="auto" hidden></audio>
+  <audio id="poppyAudio" src="https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/ElevenLabs_2026-01-14T17_28_18_Alice%20-%20Clear%2C%20Engaging%20Educator_pre_sp100_s50_sb75_v3.mp3" preload="auto"></audio>
   <div class="intro-overlay" id="introOverlay" aria-hidden="false">
     <video class="intro-video" id="introVideo" playsinline autoplay preload="auto"
-      data-intro-sequence="compressed/video/Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4|compressed/video/Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4">
-      <source src="compressed/video/Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4" type="video/mp4" />
+      data-intro-sequence="https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/video/Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4|https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/video/Firefly%20a%20cartoon%20monkey%20playing%20skydoozy.skybammy.com%20on%20a%20computer%20a%20rainbow%20should%20be%20on%20the%20scr.mp4">
+      <source src="https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/video/Firefly%20Skydoozy%20animation%20logo%20with%20matrix%20code%20and%20rainbow%20same%20vido%20without%20word%20animation%20636432.mp4" type="video/mp4" />
     </video>
     <button class="intro-skip" id="introSkip" type="button">Skip</button>
   </div>
@@ -1250,7 +1250,7 @@
     const introSkip = document.getElementById("introSkip");
     const poppyAudio = document.getElementById("poppyAudio");
     const poppyInput = document.getElementById("poppyInput");
-    const poppyAudioFile = "compressed/audio/ElevenLabs_2026-01-14T17_28_18_Alice - Clear, Engaging Educator_pre_sp100_s50_sb75_v3.mp3";
+    const poppyAudioFile = "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/ElevenLabs_2026-01-14T17_28_18_Alice - Clear, Engaging Educator_pre_sp100_s50_sb75_v3.mp3";
     if (poppyAudio) {
       poppyAudio.src = encodeURI(poppyAudioFile);
       poppyAudio.load();
@@ -1481,8 +1481,8 @@
     const playlist = bgAudio
       ? [
           bgAudio.getAttribute("src"),
-          "compressed/audio/45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29%201.mp3",
-          "compressed/audio/freepik-harmony.mp3"
+          "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/45.4s%20Recording%20%28Jan%209%20%40%2011_43%20AM%29%20%28Add%20Instrumental%29%201.mp3",
+          "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/audio/freepik-harmony.mp3"
         ]
       : [];
     let trackIndex = playlist.length ? Math.floor(Math.random() * playlist.length) : 0;
@@ -5013,7 +5013,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const bipedUrl = new URL(
-        "compressed/Meshy_AI_Animation_Walking_withSkin/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Animation_Walking_withSkin/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -5097,7 +5097,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const idleUrl = new URL(
-        "compressed/Meshy_AI_Animation_Idle_9_withSkin/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Animation_Idle_9_withSkin/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -5168,7 +5168,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const planetUrl = new URL(
-        "compressed/Meshy_AI_Blue_star_planet_0107203048_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Blue_star_planet_0107203048_texture/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -5247,7 +5247,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const gladeUrl = new URL(
-        "compressed/Meshy_AI_Enchanted_Glade_1229003154_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Enchanted_Glade_1229003154_texture/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -5380,7 +5380,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const dragonUrl = new URL(
-        "compressed/Meshy_AI_Flower_Pixie_Dragon__0105010916_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Flower_Pixie_Dragon__0105010916_texture/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -5453,7 +5453,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const plantUrl = new URL(
-        "compressed/Meshy_AI_a_small_cute_plant_t_0114132205_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_a_small_cute_plant_t_0114132205_texture/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -5526,7 +5526,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const faceUrl = new URL(
-        "compressed/Meshy_AI_erstelle_mir_ein_fur__0105010140_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_erstelle_mir_ein_fur__0105010140_texture/model.glb",
         window.location.href
       ).href;
       loader.load(
@@ -6692,7 +6692,7 @@
       }
       const loader = new THREE.GLTFLoader();
       loader.load(
-        "compressed/Meshy_AI_Haunted_Victorian_Man_0114004608_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Haunted_Victorian_Man_0114004608_texture/model.glb",
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -6779,7 +6779,7 @@
       }
       const loader = new THREE.GLTFLoader();
       const sanctuaryUrl = new URL(
-        "compressed/Meshy_AI_Celestial_Sanctuary_0114155444_texture/model.glb",
+        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Celestial_Sanctuary_0114155444_texture/model.glb",
         window.location.href
       ).href;
       loader.load(
