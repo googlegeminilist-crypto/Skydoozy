@@ -1298,6 +1298,57 @@
         return false;
       }
     })();
+    const defaultAssetBase = "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/";
+    const assetBase = (() => {
+      try {
+        const url = new URL(window.location.href);
+        const paramBase = url.searchParams.get("assetBase");
+        const resolved = paramBase ? new URL(paramBase, window.location.href).href : defaultAssetBase;
+        return new URL("./", resolved).href;
+      } catch (error) {
+        return defaultAssetBase;
+      }
+    })();
+    const assetFallbackBase = (() => {
+      if (!isLocalEnv) return null;
+      try {
+        return new URL("./", window.location.href).href;
+      } catch (error) {
+        return null;
+      }
+    })();
+    const assetUrl = (path) => new URL(path, assetBase).href;
+    const assetCandidates = (path) => {
+      const urls = [assetUrl(path)];
+      if (assetFallbackBase) {
+        urls.push(new URL(path, assetFallbackBase).href);
+      }
+      return urls;
+    };
+    const loadWithFallback = (loader, urls, onLoad, onError) => {
+      let attempt = 0;
+      const tryLoad = () => {
+        const url = urls[attempt];
+        loader.load(
+          url,
+          onLoad,
+          undefined,
+          (error) => {
+            attempt += 1;
+            if (attempt < urls.length) {
+              console.warn(`Asset failed to load: ${url}. Trying fallback...`, error);
+              tryLoad();
+            } else if (onError) {
+              onError(error);
+            }
+          }
+        );
+      };
+      tryLoad();
+    };
+    const loadGlbWithFallback = (loader, path, onLoad, onError) => {
+      loadWithFallback(loader, assetCandidates(path), onLoad, onError);
+    };
     let debugDayOffset = 0;
     if (isLocalHost) {
       try {
@@ -5012,12 +5063,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const bipedUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Animation_Walking_withSkin/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        bipedUrl,
+      const bipedPath = "compressed/Meshy_AI_Animation_Walking_withSkin/model.glb";
+      loadGlbWithFallback(
+        loader,
+        bipedPath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5079,7 +5128,6 @@
           }
           bipedState.group.visible = true;
         },
-        undefined,
         (error) => {
           console.warn("Failed to load biped GLB.", error);
         }
@@ -5096,12 +5144,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const idleUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Animation_Idle_9_withSkin/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        idleUrl,
+      const idlePath = "compressed/Meshy_AI_Animation_Idle_9_withSkin/model.glb";
+      loadGlbWithFallback(
+        loader,
+        idlePath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5144,7 +5190,6 @@
             flowerCreatureState.action.play();
           }
         },
-        undefined,
         (error) => {
           console.warn("Failed to load flower creature GLB.", error);
         }
@@ -5167,12 +5212,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const planetUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Blue_star_planet_0107203048_texture/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        planetUrl,
+      const planetPath = "compressed/Meshy_AI_Blue_star_planet_0107203048_texture/model.glb";
+      loadGlbWithFallback(
+        loader,
+        planetPath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5221,7 +5264,6 @@
             planetDecorState.instances.push(clone);
           }
         },
-        undefined,
         (error) => {
           console.warn("Failed to load planet decor GLB.", error);
         }
@@ -5246,12 +5288,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const gladeUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Enchanted_Glade_1229003154_texture/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        gladeUrl,
+      const gladePath = "compressed/Meshy_AI_Enchanted_Glade_1229003154_texture/model.glb";
+      loadGlbWithFallback(
+        loader,
+        gladePath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5354,7 +5394,6 @@
             });
           }
         },
-        undefined,
         (error) => {
           console.warn("Failed to load glade decor GLB.", error);
         }
@@ -5379,12 +5418,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const dragonUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Flower_Pixie_Dragon__0105010916_texture/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        dragonUrl,
+      const dragonPath = "compressed/Meshy_AI_Flower_Pixie_Dragon__0105010916_texture/model.glb";
+      loadGlbWithFallback(
+        loader,
+        dragonPath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5421,7 +5458,6 @@
           pixieDragonState.group.add(model);
           pixieDragonState.model = model;
         },
-        undefined,
         (error) => {
           console.warn("Failed to load pixie dragon GLB.", error);
         }
@@ -5452,12 +5488,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const plantUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_a_small_cute_plant_t_0114132205_texture/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        plantUrl,
+      const plantPath = "compressed/Meshy_AI_a_small_cute_plant_t_0114132205_texture/model.glb";
+      loadGlbWithFallback(
+        loader,
+        plantPath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5495,7 +5529,6 @@
           flyingPlantState.model = model;
           flyingPlantState.modelBaseRotation.copy(model.rotation);
         },
-        undefined,
         (error) => {
           console.warn("Failed to load flying plant GLB.", error);
         }
@@ -5525,12 +5558,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const faceUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_erstelle_mir_ein_fur__0105010140_texture/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        faceUrl,
+      const facePath = "compressed/Meshy_AI_erstelle_mir_ein_fur__0105010140_texture/model.glb";
+      loadGlbWithFallback(
+        loader,
+        facePath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -5567,7 +5598,6 @@
           flowerFaceState.group.add(model);
           flowerFaceState.model = model;
         },
-        undefined,
         (error) => {
           console.warn("Failed to load flower face GLB.", error);
         }
@@ -6691,8 +6721,9 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      loader.load(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Haunted_Victorian_Man_0114004608_texture/model.glb",
+      loadGlbWithFallback(
+        loader,
+        "compressed/Meshy_AI_Haunted_Victorian_Man_0114004608_texture/model.glb",
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -6764,7 +6795,6 @@
 
           scene.add(model);
         },
-        undefined,
         (error) => {
           console.warn("Failed to load haunted house GLB. Using fallback.", error);
           buildHouse();
@@ -6778,12 +6808,10 @@
         return;
       }
       const loader = new THREE.GLTFLoader();
-      const sanctuaryUrl = new URL(
-        "https://pub-f4c7de2bdb274dbbb2792e2e990f68ca.r2.dev/compressed/Meshy_AI_Celestial_Sanctuary_0114155444_texture/model.glb",
-        window.location.href
-      ).href;
-      loader.load(
-        sanctuaryUrl,
+      const sanctuaryPath = "compressed/Meshy_AI_Celestial_Sanctuary_0114155444_texture/model.glb";
+      loadGlbWithFallback(
+        loader,
+        sanctuaryPath,
         (gltf) => {
           const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
           if (!model) {
@@ -6856,7 +6884,6 @@
 
           scene.add(model);
         },
-        undefined,
         (error) => {
           console.warn("Failed to load celestial sanctuary GLB.", error);
         }
